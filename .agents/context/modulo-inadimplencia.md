@@ -26,6 +26,11 @@ Regras de negócio, arquitetura de views, fluxos de conciliação de planilhas e
   3. Consulta a view `vw_nfpendencias_fase` pelo ID inserido para obter os valores calculados de fase e status.
   4. Salva os registros síncronos na tabela `historicopendencia`.
 
+### Data de corte (quando um título está vencido)
+- Regra única: **vencido = vencimento até o último dia útil antes de hoje** (pula sábado, domingo e feriados nacionais).
+- Calculada só pela função MySQL `fn_data_corte_vencimento(data)`, que lê a tabela `feriados`. A view, a importação, a listagem e o atalho "Regra do Dia" usam essa função — nenhum outro lugar calcula dia útil.
+- A tabela `feriados` é preenchida automaticamente pelo backend (`feriado_service.sincronizar_feriados_nacionais`, chamado em toda importação) via BrasilAPI, para o ano anterior, o atual e o próximo. Feriados municipais não são considerados.
+
 ---
 
 ## 3. Comportamento em Reimportações de Planilhas

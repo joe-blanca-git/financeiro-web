@@ -177,6 +177,11 @@ export class PendenciasComponent implements OnInit {
     });
   }
 
+  private parseISO(iso: string): Date {
+    const [ano, mes, dia] = iso.split('-').map(Number);
+    return new Date(ano, mes - 1, dia);
+  }
+
   private formatarISO(data: Date): string {
     const pad = (n: number) => n.toString().padStart(2, '0');
     return `${data.getFullYear()}-${pad(data.getMonth() + 1)}-${pad(data.getDate())}`;
@@ -397,33 +402,10 @@ export class PendenciasComponent implements OnInit {
     const today = new Date();
 
     if (shortcut === 'ult-vencimento') {
-      const diaSemana = today.getDay(); // 0 = Domingo, 1 = Segunda, 2 = Terça, 3 = Quarta, 4 = Quinta, 5 = Sexta, 6 = Sábado
-      if (diaSemana === 1) {
-        // Segunda-feira: títulos que venceram na sexta-feira anterior (hoje - 3 dias)
-        const sexta = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 3);
-        this.dataInicio = sexta;
-        this.dataFim = new Date(sexta);
-      } else if (diaSemana === 2) {
-        // Terça-feira: títulos que venceram no sábado, domingo ou segunda (hoje - 3 dias até hoje - 1 dia)
-        const sabado = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 3);
-        const segunda = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
-        this.dataInicio = sabado;
-        this.dataFim = segunda;
-      } else if (diaSemana === 0) {
-        // Domingo: sexta-feira anterior
-        const sexta = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 2);
-        this.dataInicio = sexta;
-        this.dataFim = new Date(sexta);
-      } else if (diaSemana === 6) {
-        // Sábado: sexta-feira anterior
-        const sexta = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
-        this.dataInicio = sexta;
-        this.dataFim = new Date(sexta);
-      } else {
-        // Quarta, Quinta, Sexta: exatamente o dia anterior (hoje - 1 dia)
-        const ontem = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
-        this.dataInicio = ontem;
-        this.dataFim = new Date(ontem);
+      // Janela calculada pelo backend (pula fim de semana e feriados nacionais)
+      if (this.regraDiaInicio && this.regraDiaFim) {
+        this.dataInicio = this.parseISO(this.regraDiaInicio);
+        this.dataFim = this.parseISO(this.regraDiaFim);
       }
     } else if (shortcut === 'este-mes') {
       this.dataInicio = new Date(today.getFullYear(), today.getMonth(), 1);

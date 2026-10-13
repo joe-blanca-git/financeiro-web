@@ -20,6 +20,7 @@ from app.models.importacao import Importacao
 from app.models.pendencia_mensagem import PendenciaMensagem
 from app.models.user import User
 from app.services.importacao_service import ImportacaoService
+from app.services.feriado_service import data_corte_vencimento, sincronizar_feriados_nacionais
 
 logger = logging.getLogger("santamaria")
 
@@ -113,46 +114,15 @@ def _clean_titulo(value) -> Optional[str]:
     return texto or None
 
 
-def resolver_intervalo_vencimento(hoje: datetime.date) -> Tuple[datetime.date, datetime.date]:
+def resolver_intervalo_vencimento(db: Session, hoje: datetime.date) -> Tuple[datetime.date, datetime.date]:
     """
-    Primeiro critério de importação: a janela de datas de vencimento (coluna P) elegível
-    depende do dia da semana em que a importação é executada.
-      - Segunda-feira: sexta-feira anterior (último dia útil antes do fim de semana).
-      - Terça-feira: sábado anterior até segunda anterior (fim de semana + segunda que antecedem a terça).
-      - Quarta, quinta ou sexta-feira: exatamente o dia anterior.
-    Sábado e domingo não têm regra definida e devem bloquear a importação.
+    Janela "Regra do Dia": títulos que passaram a ficar vencidos hoje. Vai do dia seguinte à
+    data de corte do último dia útil até a data de corte de hoje. Ex.: terça comum -> sábado
+    a segunda; quarta após segunda-feira feriado -> sábado a terça (inclui o feriado).
     """
-    dia_semana = hoje.weekday()  # 0=segunda ... 6=domingo
-    if dia_semana == 0:  # segunda-feira
-        sexta_anterior = hoje - datetime.timedelta(days=3)
-        return sexta_anterior, sexta_anterior
-    if dia_semana == 1:  # terça-feira
-        inicio = hoje - datetime.timedelta(days=3)  # sábado anterior
-        fim = hoje - datetime.timedelta(days=1)  # segunda anterior
-        return inicio, fim
-    if dia_semana in (2, 3, 4):  # quarta, quinta, sexta
-        ontem = hoje - datetime.timedelta(days=1)
-        return ontem, ontem
-    if dia_semana == 5:  # sábado -> sexta anterior
-        sexta = hoje - datetime.timedelta(days=1)
-        return sexta, sexta
-    if dia_semana == 6:  # domingo -> sexta anterior
-        sexta = hoje - datetime.timedelta(days=2)
-        return sexta, sexta
-
-
-def calcular_data_corte_vencimento(data_ref: datetime.date) -> datetime.date:
-    """
-    Retorna a data máxima de vencimento para que um título seja considerado vencido:
-      - Segunda-feira: sexta-feira anterior (hoje - 3 dias), pois boletos que vencem
-        no sábado ou domingo podem ser pagos na segunda sem atraso.
-      - Demais dias (terça a domingo): ontem (hoje - 1 dia).
-    Títulos com dtVencimento maior que essa data NÃO são considerados vencidos e
-    devem ser ignorados na importação de pendências.
-    """
-    if data_ref.weekday() == 0:  # segunda-feira
-        return data_ref - datetime.timedelta(days=3)
-    return data_ref - datetime.timedelta(days=1)
+    fim = data_corte_vencimento(db, hoje)
+    inicio = data_corte_vencimento(db, fim) + datetime.timedelta(days=1)
+    return inicio, fim
 
 
 
@@ -311,7 +281,8 @@ class InadimplenciaService:
         clientes_criados = 0
         matrizes_criadas = 0
 
-        data_corte = calcular_data_corte_vencimento(datetime.date.today())
+        sincronizar_feriados_nacionais(datetime.date.today())
+        data_corte = data_corte_vencimento(self.db, datetime.date.today())
         ids_processados_planilha: set[int] = set()
 
         for linhas_lidas, linha in enumerate(linhas):
@@ -674,8 +645,8 @@ class InadimplenciaService:
         )
 
         if vencimento_inicio is None and vencimento_fim is None:
-            data_corte = calcular_data_corte_vencimento(datetime.date.today())
-            query = query.filter(VwNfPendenciaFase.dtVencimento <= data_corte)
+            data_corte = data_corte_vencimento(self.db, datetime.date.today())
+            query =query.filter(VwNfPendenciaFase.dtVencimento <= data_corte)
         else:
             if vencimento_inicio is not None:
                 query = query.filter(VwNfPendenciaFase.dtVencimento >= vencimento_inicio)
@@ -711,18 +682,11 @@ class InadimplenciaService:
 
     def obter_janela_regra_dia(self) -> dict:
         """
-        Expõe a mesma regra de dia da semana (critério 1) como uma janela de datas pronta
-        para o atalho "Regra do Dia" do filtro de período - não bloqueia mais a importação,
-        só informa qual seria a janela de vencimento "do dia" hoje, se houver uma definida.
+        Janela de vencimento "do dia" (dias úteis e feriados) para o atalho "Regra do Dia"
+        do filtro de período. É a única fonte dessa janela - o frontend não recalcula.
         """
         hoje = datetime.date.today()
-        try:
-            inicio, fim = resolver_intervalo_vencimento(hoje)
-        except ValueError:
-            return {
-                "aplicavel": False,
-                "diaSemanaHoje": WEEKDAY_NOMES[hoje.weekday()],
-            }
+        inicio, fim = resolver_intervalo_vencimento(self.db, hoje)
         return {
             "aplicavel": True,
             "inicio": inicio.isoformat(),

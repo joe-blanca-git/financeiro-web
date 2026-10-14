@@ -16,6 +16,7 @@ from app.schemas.colaborador_import import (
 from app.schemas.colaborador import ColaboradorCreate
 from app.services.colaborador_service import ColaboradorService
 from app.models.colaboradores_movimento import ColaboradoresMovimento
+from app.services.colaborador_movimento_service import ativacao_confirmada_pelo_rh
 
 HEADER_ROW = 2
 DATA_START_ROW = 3
@@ -122,7 +123,9 @@ class ColaboradorImportService:
                 continue
 
             cc_divergente = bool(cc) and existente.idCentroCusto != cc.idCentroCusto
-            reativado = existente.snAtivo == 'N'
+            # Inativo, ou ativo sem respaldo do RH (ex.: incluído pela tela do plano): a planilha
+            # do RH confirma a ativação, que precisa ficar registrada no histórico de movimentos.
+            reativado = existente.snAtivo == 'N' or not ativacao_confirmada_pelo_rh(self.db, existente.idColaborador)
 
             precisa_atencao = (not cc) or cc_divergente or reativado
             if not precisa_atencao:
@@ -198,6 +201,13 @@ class ColaboradorImportService:
                 db_obj = self.db.query(Colaborador).filter(Colaborador.idColaborador == div.idColaborador).first()
                 if not db_obj:
                     raise HTTPException(status_code=404, detail=f"Colaborador {div.idColaborador} não encontrado.")
+                if db_obj.snAtivo == 'N' or not ativacao_confirmada_pelo_rh(self.db, db_obj.idColaborador):
+                    self.db.add(ColaboradoresMovimento(
+                        idColaboradores=db_obj.idColaborador,
+                        origem='ATUALIZACAO_BASE',
+                        userCreatedId=user_id,
+                        tipoMovimento='ATIVACAO'
+                    ))
                 db_obj.idCentroCusto = div.idCentroCusto
                 db_obj.snAtivo = 'S'
                 atualizados += 1

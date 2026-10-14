@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Tuple, Optional
 import pypdf
 import pandas as pd
 import re
+import unicodedata
 from google import genai
 from google.genai import types
 
@@ -461,6 +462,55 @@ class DespesasViagensParserService:
                     })
         return despesas
 
+    # Linha principal de um item da fatura OnFly: "<Modal>  <Protocolo>  <Data da compra> ... R$ <valor>".
+    # Reembolsos vêm com modal "Reembolso" e valor negativo, e são lançados assim (categoria Reembolso).
+    _ONFLY_LINHA_ITEM = re.compile(r'^\s*([A-Za-zÀ-ÿ]+)\s+[A-Z0-9]{5,8}\s+\d{2}/\d{2}/\d{4}\b.*R\$\s*(-?[\d\.,]+)\s*$')
+    # Texto de uma célula: palavras separadas por 1 espaço (2+ espaços separam colunas no modo layout).
+    _ONFLY_SEGMENTO = re.compile(r'\S+(?: \S+)*')
+
+    @classmethod
+    def _itens_onfly_fatura(cls, reader) -> List[Tuple[str, str, str]]:
+        """
+        Lê a tabela da fatura OnFly respeitando as colunas (extração em modo layout).
+        Retorna (modal, texto da coluna Viajante, valor) por item.
+
+        Cada célula pode quebrar em várias linhas acima/abaixo da linha principal do item.
+        A coluna Viajante é a antepenúltima da linha principal (Comprador | Viajante |
+        Centro de custos | Valor); o nome é montado com os pedaços de texto alinhados a ela
+        no bloco do item (linhas não vazias contíguas).
+        """
+        itens = []
+        for page in reader.pages:
+            texto = unicodedata.normalize("NFKC", page.extract_text(extraction_mode="layout") or "")
+            linhas = texto.splitlines()
+            ancoras = [i for i, linha in enumerate(linhas) if cls._ONFLY_LINHA_ITEM.match(linha)]
+            for i in ancoras:
+                m = cls._ONFLY_LINHA_ITEM.match(linhas[i])
+                segmentos = list(cls._ONFLY_SEGMENTO.finditer(linhas[i]))
+                if len(segmentos) < 4:
+                    continue
+                coluna = segmentos[-3]
+                inicio, fim = coluna.start() - 2, coluna.end() + 2
+
+                a = i
+                while a > 0 and linhas[a - 1].strip():
+                    a -= 1
+                b = i
+                while b + 1 < len(linhas) and linhas[b + 1].strip():
+                    b += 1
+                ancoras_bloco = [k for k in ancoras if a <= k <= b]
+
+                partes = []
+                for j in range(a, b + 1):
+                    # Linha do bloco pertence ao item mais próximo (um bloco pode ter mais de um item)
+                    if min(ancoras_bloco, key=lambda k: (abs(k - j), k)) != i:
+                        continue
+                    for s in cls._ONFLY_SEGMENTO.finditer(linhas[j]):
+                        if inicio <= (s.start() + s.end()) / 2 <= fim:
+                            partes.append(s.group())
+                itens.append((m.group(1), " ".join(partes), m.group(2)))
+        return itens
+
     def _parse_onfly_fatura_pdf(self, file_content: bytes, db) -> List[Dict]:
         from app.repositories.colaborador_repository import ColaboradorRepository
         from app.repositories.colaborador_alias_repository import ColaboradorAliasRepository
@@ -474,11 +524,6 @@ class DespesasViagensParserService:
 
         fatura_match = re.search(r'Fatura\s+(\d+)', full_text)
         codigo_rdv = f"Fatura {fatura_match.group(1)}" if fatura_match else None
-        
-        full_text_cleaned = re.sub(r'ONFLY TECNOLOGIA LTDA.*?Data de vencimento:\s*\d{2}/\d{2}/\d{4}', '', full_text, flags=re.DOTALL)
-
-        pattern = r'(Hotel|Aéreo|Carro|Ônibus|Transfer|Hospedagem|Voo|Seguro)\s+([A-Z0-9]{5,8})\s+(\d{2}/\d{2}/\d{4})(.*?)(R\$\s*[\d\.,]+)'
-        matches = re.finditer(pattern, full_text_cleaned, flags=re.DOTALL)
 
         def extract_viajante(names_str):
             names_str = names_str.strip()
@@ -496,20 +541,9 @@ class DespesasViagensParserService:
         colab_repo = ColaboradorRepository(db) if db else None
         alias_repo = ColaboradorAliasRepository(db) if db else None
 
-        for m in matches:
-            modal = m.group(1).strip()
-            middle_text = m.group(4)
-            valor_str = m.group(5).replace('R$', '').replace('.', '').replace(',', '.').strip()
-            
-            dates_match = re.search(r'(\d{2}/\d{2}/\d{4})\s*(\d{2}/\d{2}/\d{4})(.*)', middle_text, flags=re.DOTALL)
-            viajante_nome = "Não Identificado"
-            if dates_match:
-                rest = dates_match.group(3).strip()
-                cc_match = re.search(r'(\d+\s*-.*)', rest, flags=re.DOTALL)
-                if cc_match:
-                    names_part = rest[:cc_match.start()].strip()
-                    names_clean = re.sub(r'\s+', ' ', names_part)
-                    viajante_nome = extract_viajante(names_clean)
+        for modal, viajante_texto, valor_texto in self._itens_onfly_fatura(reader):
+            valor_str = valor_texto.replace('.', '').replace(',', '.')
+            viajante_nome = extract_viajante(viajante_texto) if viajante_texto else "Não Identificado"
 
             colaborador_id = None
             pessoa_encontrada = False

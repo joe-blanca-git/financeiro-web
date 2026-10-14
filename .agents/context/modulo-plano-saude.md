@@ -95,6 +95,8 @@ A vinculação do beneficiário ao colaborador do ERP segue regras estritas:
 - Durante a persistência de faturas (ex: `confirmar_sorriso` e `confirmar_unimed_odonto` no `PlanoSaudeIAService`), o sistema audita os beneficiários validados contra a base do RH.
 - **Regras de Detecção de "Ghosts"**:
   1. O colaborador vinculado foi encontrado, mas está inativo (`snAtivo == 'N'`).
-  2. O colaborador está ativo, mas não possui nenhum registro histórico de movimento do tipo `ATIVACAO` originado de importações do RH (`IMPORTACAO_EXCEL`, `MANUAL`, `ATUALIZACAO_BASE`).
+  2. O colaborador está ativo, mas a **última** `ATIVACAO` dele não veio do RH (`IMPORTACAO_EXCEL`, `MANUAL`, `ATUALIZACAO_BASE`) — ex.: incluído ou reativado pela tela do plano (origem `IMPORTACOES`). Regra única em `colaborador_movimento_service.ativacao_confirmada_pelo_rh`.
+- **Confirmação pelo RH**: na importação da base do RH, quem está ativo sem respaldo do RH aparece como "reativado" na prévia e, ao processar, ganha uma `ATIVACAO` com origem `ATUALIZACAO_BASE`, deixando de gerar alerta.
+- **Exclusão de importação**: excluir uma importação apaga também os alertas gerados por ela.
 - **Registro**: Se enquadrado em qualquer uma das regras acima, um registro é gravado na tabela `turnover_planos_saude` mapeando o Colaborador, a Empresa emissora da despesa (e não o vínculo do colaborador), a Importação geradora e o **valor da operação** (para facilitar conciliação financeira do faturamento indevido).
 - **Consulta e Relatório**: Os alertas são consumidos pelo frontend via `GET /alertas-plano-saude` e renderizados na aba *Alertas de Planos de Saúde* do modal de Turnover (Módulo Configurações). O usuário pode exportar os alertas problemáticos em Excel (incluindo a formatação em R$ do valor gerado pelo fantasma) para buscar reembolso junto ao RH/Operadora.

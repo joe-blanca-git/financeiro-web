@@ -110,7 +110,7 @@ def listar_alertas_plano_saude(
             "idColaborador": a.idColaborador,
             "colaboradorNome": colab.nome if colab else "—",
             "colaboradorDocumento": colab.documento if colab else None,
-            "empresaNome": empresa.nomeAbrev or empresa.nome if empresa else "—",
+            "empresaNome": empresa.nome if empresa else "—",
             "competencia": a.competencia,
             "valor": float(a.valor) if a.valor is not None else None,
             "resolvido": a.resolvido,
@@ -126,3 +126,22 @@ def listar_alertas_plano_saude(
         "total_pages": (total + size - 1) // size if total > 0 else 0,
     }
 
+
+
+# Origens de ativação que vêm do RH. Ativação com outra origem (ex.: IMPORTACOES, cadastro
+# feito na tela do plano durante a conferência da fatura) não dá respaldo ao colaborador.
+ORIGENS_ATIVACAO_RH = ('IMPORTACAO_EXCEL', 'MANUAL', 'ATUALIZACAO_BASE')
+
+
+def ativacao_confirmada_pelo_rh(db: Session, id_colaborador: int) -> bool:
+    """True se a última ativação do colaborador veio do RH."""
+    ultima_ativacao = (
+        db.query(ColaboradoresMovimento)
+        .filter(
+            ColaboradoresMovimento.idColaboradores == id_colaborador,
+            ColaboradoresMovimento.tipoMovimento == 'ATIVACAO',
+        )
+        .order_by(ColaboradoresMovimento.createdAt.desc(), ColaboradoresMovimento.idcolaboradoresmovimento.desc())
+        .first()
+    )
+    return ultima_ativacao is not None and ultima_ativacao.origem in ORIGENS_ATIVACAO_RH

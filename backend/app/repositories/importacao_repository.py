@@ -48,9 +48,15 @@ class ImportacaoRepository:
             text("UPDATE nfpendencias SET idImportacoes = NULL WHERE idImportacoes = :id"),
             {"id": id_importacao}
         )
+        # Alertas de turnover só existem por causa da fatura importada: saem junto com ela
+        # (a FK não tem cascade e bloquearia a exclusão).
+        self.db.execute(
+            text("DELETE FROM turnover_planos_saude WHERE idImportacao = :id"),
+            {"id": id_importacao}
+        )
         self.db.flush()
 
-        importacao = self.db.query(Importacao).filter(Importacao.idImportacoes == id_importacao).first()
+        importacao =self.db.query(Importacao).filter(Importacao.idImportacoes == id_importacao).first()
         if importacao:
             self.db.delete(importacao)
             self.db.commit()

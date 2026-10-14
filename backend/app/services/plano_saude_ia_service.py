@@ -11,7 +11,6 @@ from app.models.colaborador import Colaborador
 from app.models.empresa import Empresa
 from app.models.importacao import Importacao
 from app.models.movimentacao import Movimentacao
-from app.models.colaboradores_movimento import ColaboradoresMovimento
 from app.models.turnover_plano_saude import TurnoverPlanoSaude
 from app.repositories.categoria_repository import CategoriaRepository
 from app.repositories.colaborador_alias_repository import ColaboradorAliasRepository
@@ -24,8 +23,8 @@ from app.schemas.plano_saude import (
     ExportarSorrisoExcelPayload,
     ExportarUnimedExcelPayload,
 )
+from app.services.colaborador_movimento_service import ativacao_confirmada_pelo_rh
 from app.services.ia_service import IAService
-
 
 class PlanoSaudeIAService:
     """Extração (IA/regex), confirmação e exportação das faturas de Plano de Saúde
@@ -45,6 +44,11 @@ class PlanoSaudeIAService:
         if 8 <= len(digitos) <= 11:
             digitos = digitos.zfill(11)
         return digitos
+
+    def _eh_ghost(self, colab) -> bool:
+        """Beneficiário cobrado na fatura sem respaldo da base do RH: está inativo, ou a
+        última ativação dele não veio do RH (ex.: incluído/reativado pela tela do plano)."""
+        return colab.snAtivo == 'N' or not ativacao_confirmada_pelo_rh(self.db, colab.idColaborador)
 
     # ------------------------------------------------------------------
     # Resolução de colaborador (compartilhada entre Sorriso e a rota universal)
@@ -372,19 +376,7 @@ class PlanoSaudeIAService:
             self.db.add(nova_mov)
 
             # --- REGISTRO DE TURNOVER/DIVERGÊNCIA DE PLANO ---
-            is_ghost = False
-            if colab.snAtivo == 'N':
-                is_ghost = True
-            else:
-                tem_ativacao_rh = self.db.query(ColaboradoresMovimento).filter(
-                    ColaboradoresMovimento.idColaboradores == colab.idColaborador,
-                    ColaboradoresMovimento.origem.in_(['IMPORTACAO_EXCEL', 'MANUAL', 'ATUALIZACAO_BASE']),
-                    ColaboradoresMovimento.tipoMovimento == 'ATIVACAO'
-                ).first()
-                if not tem_ativacao_rh:
-                    is_ghost = True
-
-            if is_ghost:
+            if self._eh_ghost(colab):
                 comp_str = None
                 if payload.dataCompetencia:
                     try:
@@ -572,19 +564,7 @@ class PlanoSaudeIAService:
             self.db.add(nova_mov)
 
             # --- REGISTRO DE TURNOVER/DIVERGÊNCIA DE PLANO ---
-            is_ghost = False
-            if colab.snAtivo == 'N':
-                is_ghost = True
-            else:
-                tem_ativacao_rh = self.db.query(ColaboradoresMovimento).filter(
-                    ColaboradoresMovimento.idColaboradores == colab.idColaborador,
-                    ColaboradoresMovimento.origem.in_(['IMPORTACAO_EXCEL', 'MANUAL', 'ATUALIZACAO_BASE']),
-                    ColaboradoresMovimento.tipoMovimento == 'ATIVACAO'
-                ).first()
-                if not tem_ativacao_rh:
-                    is_ghost = True
-
-            if is_ghost:
+            if self._eh_ghost(colab):
                 comp_str = None
                 if payload.dataCompetencia:
                     try:

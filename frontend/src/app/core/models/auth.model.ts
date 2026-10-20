@@ -20,3 +20,9 @@ export interface RegisterCredentials {
   email: string;
   password: string;
 }
+
+export interface ConviteInfo {
+  name: string;
+  email: string;
+  regrasSenha: string;
+}

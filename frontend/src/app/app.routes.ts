@@ -19,6 +19,11 @@ export const routes: Routes = [
     canActivate: [noAuthGuard]
   },
   {
+    // Primeiro acesso pelo link do convite (público: o token do link é a autorização)
+    path: 'primeiro-acesso',
+    loadComponent: () => import('./pages/auth/primeiro-acesso/primeiro-acesso.component').then(m => m.PrimeiroAcessoComponent)
+  },
+  {
     path: 'compartilhar/inadimplencia',
     loadComponent: () => import('./pages/inadimplencia-publica/inadimplencia-publica.component').then(m => m.InadimplenciaPublicaComponent)
   },
@@ -38,6 +43,8 @@ export const routes: Routes = [
     path: '',
     loadComponent: () => import('./layout/main-layout/main-layout.component').then(m => m.MainLayoutComponent),
     canActivate: [authGuard],
+    // Também em cada navegação entre páginas internas (o nível Comercial - Vendas só vê a carteira)
+    canActivateChild: [authGuard],
     children: [
       {
         path: '',

@@ -8,6 +8,8 @@ class GerenteResponse(BaseModel):
     nome: str
     obs: Optional[str] = None
     qtdRepresentantes: int = 0
+    idUser: Optional[int] = None
+    usuarioEmail: Optional[str] = None
 
 
 class GerentePaginatedResponse(BaseModel):
@@ -34,3 +36,7 @@ class RepresentantePaginatedResponse(BaseModel):
     page_size: int
     total: int
     total_pages: int
+
+
+class VincularUsuarioRequest(BaseModel):
+    email: str

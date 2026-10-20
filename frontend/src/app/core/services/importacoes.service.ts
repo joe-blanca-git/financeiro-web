@@ -172,6 +172,13 @@ export class ImportacoesService {
     );
   }
 
+  compartilharCarteira(formData: FormData): Observable<{ sucesso: boolean; message_id?: string; qtdTitulos?: number }> {
+    return this.http.post<{ sucesso: boolean; message_id?: string; qtdTitulos?: number }>(
+      `${this.apiUrl}/inadimplencia/dashboard/compartilhar-carteira`,
+      formData
+    );
+  }
+
   compartilharDashboardLogistica(formData: FormData): Observable<{ sucesso: boolean; message_id?: string }> {
     return this.http.post<{ sucesso: boolean; message_id?: string }>(
       `${this.apiUrl}/inadimplencia/dashboard/compartilhar-logistica`,

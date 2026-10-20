@@ -1,0 +1,306 @@
+@import '../../../styles/variables';
+
+// Grade e modais: mesmos estilos da grade "Títulos em Atraso" do painel de inadimplência
+.status-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 0.2rem 0.55rem;
+  border-radius: 12px;
+  white-space: nowrap;
+  display: inline-block;
+  width: fit-content;
+}
+
+.saas-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  thead {
+    background-color: $gray-50;
+    border-bottom: 1px solid $border-color;
+
+    th {
+      padding: 0.75rem 1.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: $gray-500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      text-align: left;
+      white-space: nowrap;
+    }
+  }
+
+  tbody {
+    tr {
+      border-bottom: 1px solid $gray-100;
+      transition: background-color 0.15s ease;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      &:hover {
+        background-color: rgba($gray-50, 0.5);
+      }
+
+      td {
+        padding: 1rem 1.25rem;
+        font-size: 0.8125rem;
+        color: $gray-700;
+        vertical-align: middle;
+      }
+    }
+  }
+
+  .file-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    color: $gray-800;
+
+    i {
+      font-size: 1rem;
+    }
+  }
+
+  .actions-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+
+    .action-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: $gray-400;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 0.875rem;
+
+      &:hover {
+        background-color: $gray-100;
+        color: $gray-700;
+      }
+
+      &.delete-btn {
+        &:hover {
+          background-color: rgba($danger, 0.1);
+          color: $danger;
+        }
+      }
+    }
+  }
+}
+
+// Timeline Vertical - Modal Histórico
+// (Identico ao visual da timeline horizontal)
+// =============================================
+.timeline-vertical {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0.25rem;
+  max-height: 420px;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--color-border-light, #e2e8f0);
+    border-radius: 10px;
+  }
+
+  .timeline-v-node {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+    padding-bottom: 1.5rem;
+
+    // Linha vertical conectora
+    &::before {
+      content: '';
+      position: absolute;
+      left: 20px;
+      top: 40px;
+      bottom: 0;
+      width: 2px;
+      background-color: var(--color-border-light, #e2e8f0);
+      transform: translateX(-50%);
+    }
+
+    &.last::before,
+    &:last-child::before {
+      display: none;
+    }
+
+    .timeline-icon {
+      position: relative;
+      z-index: 1;
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      border: 3px solid var(--color-surface, #ffffff);
+      box-shadow: 0 0 0 1px var(--color-border-light, #e2e8f0);
+
+      &.cor-primary { background-color: rgba(var(--bs-primary-rgb), 0.15); color: var(--bs-primary); }
+      &.cor-success { background-color: rgba(var(--bs-success-rgb), 0.15); color: var(--bs-success); }
+      &.cor-warning { background-color: rgba(var(--bs-warning-rgb), 0.18); color: var(--bs-warning); }
+      &.cor-danger { background-color: rgba(var(--bs-danger-rgb), 0.15); color: var(--bs-danger); }
+      &.cor-info { background-color: rgba(var(--bs-info-rgb), 0.15); color: var(--bs-info); }
+      &.cor-secondary { background-color: rgba(var(--bs-secondary-rgb), 0.18); color: var(--color-text-primary); }
+    }
+
+    .timeline-card {
+      flex: 1;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      padding-top: 0.15rem;
+      min-width: 0;
+
+      .timeline-date {
+        font-size: 0.72rem;
+        color: var(--color-text-muted);
+        font-variant-numeric: tabular-nums;
+
+        small {
+          opacity: 0.85;
+          margin-left: 2px;
+        }
+      }
+
+      .timeline-type {
+        font-size: 0.825rem;
+        font-weight: 600;
+        color: var(--color-text-primary);
+
+        &.cor-primary { color: var(--bs-primary); }
+        &.cor-success { color: var(--bs-success); }
+        &.cor-warning { color: var(--bs-warning); }
+        &.cor-danger { color: var(--bs-danger); }
+        &.cor-info { color: var(--bs-info); }
+        &.cor-secondary { color: var(--color-text-primary); }
+      }
+
+      .timeline-obs {
+        font-size: 0.775rem;
+        color: var(--color-text-secondary);
+        line-height: 1.45;
+        margin: 0;
+        word-break: break-word;
+      }
+    }
+  }
+}
+
+// Dark mode overrides
+[data-bs-theme='dark'] {
+  .timeline-vertical {
+    .timeline-v-node {
+      &::before {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+
+      .timeline-icon {
+        border-color: var(--color-surface, #1e293b);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+
+        &.cor-secondary {
+          color: #f1f5f9;
+        }
+      }
+
+      .timeline-card {
+        .timeline-type {
+          color: #f1f5f9;
+          &.cor-secondary { color: #f1f5f9; }
+        }
+
+        .timeline-obs {
+          color: #cbd5e1;
+        }
+      }
+    }
+  }
+}
+
+// Cards de totais da carteira
+.carteira-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background-color: #ffffff;
+}
+
+.carteira-kpi-rotulo {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.carteira-kpi-valor {
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.carteira-card {
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background-color: #ffffff;
+}
+
+.carteira-aviso {
+  padding: 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background-color: #eff6ff;
+  color: #1e40af;
+}
+
+// Tema escuro
+:host-context([data-theme="dark"]),
+:host-context([data-bs-theme="dark"]) {
+  .carteira-kpi,
+  .carteira-card {
+    border-color: rgba(255, 255, 255, 0.08);
+    background-color: rgba(255, 255, 255, 0.03);
+  }
+
+  .carteira-kpi-rotulo {
+    color: #94a3b8;
+  }
+
+  .carteira-aviso {
+    border-color: rgba(59, 130, 246, 0.35);
+    background-color: rgba(59, 130, 246, 0.12);
+    color: #bfdbfe;
+  }
+}

@@ -3,7 +3,8 @@ export interface User {
   iduser?: number;
   email: string;
   name: string;
-  role: 'admin' | 'user' | 'manager';
+  role: 'admin' | 'user' | 'manager' | 'comercial_vendas';
+  convitePendente?: boolean;
   avatarUrl?: string;
   active?: 'S' | 'N';
   createdAt?: string;

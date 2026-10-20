@@ -1854,7 +1854,9 @@ class InadimplenciaService:
                 VwNfPendenciaFase.valorSaldo,
                 VwNfPendenciaFase.fase,
                 VwNfPendenciaFase.status,
+                Representante.idRepresentante,
                 Representante.nome.label('representante_nome'),
+                Gerente.idGerente,
                 Gerente.nome.label('gerente_nome'),
             )
             .outerjoin(Cliente, Cliente.idclientes == VwNfPendenciaFase.idCliente)
@@ -1909,7 +1911,9 @@ class InadimplenciaService:
                 "fase": g.fase,
                 "status": g.status,
                 "qtd": qtd_titulos_cliente.get(g.cliente_nome, 1),
+                "idRepresentante": g.idRepresentante,
                 "representante": g.representante_nome,
+                "idGerente": g.idGerente,
                 "gerente": g.gerente_nome,
             })
 

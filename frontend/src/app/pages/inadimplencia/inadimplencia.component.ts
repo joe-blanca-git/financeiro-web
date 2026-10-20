@@ -10,6 +10,7 @@ import { ConfirmModalComponent } from '../../shared/components/confirm-modal/con
 import { ModalComponent } from '../../shared/components/modal/modal.component';
 import { ImportacoesService, Importacao, ImportacaoPendenciasResponse, MensagemThreadApi } from '../../core/services/importacoes.service';
 import { GoogleAuthService } from '../../core/services/google-auth.service';
+import { ComercialService } from '../../core/services/comercial.service';
 
 export interface MensagemChat {
   id: number;
@@ -259,7 +260,7 @@ export class InadimplenciaComponent implements OnInit {
   confirmMessage = '';
   confirmText = 'Confirmar';
   cancelText = 'Cancelar';
-  confirmVariant: 'danger' | 'primary' = 'primary';
+  confirmVariant: 'danger' | 'primary' | 'success' = 'primary';
   showCancelConfirm = true;
   confirmCallback: () => void = () => {};
 
@@ -274,7 +275,7 @@ export class InadimplenciaComponent implements OnInit {
     this.isConfirmModalOpen = true;
   }
 
-  openAlert(title: string, message: string, variant: 'danger' | 'primary' = 'primary') {
+  openAlert(title: string, message: string, variant: 'danger' | 'primary' | 'success' = 'primary') {
     this.confirmTitle = title;
     this.confirmMessage = message;
     this.confirmText = 'Ok';
@@ -1211,11 +1212,108 @@ export class InadimplenciaComponent implements OnInit {
       next: () => {
         this.isEnviandoCompartilhamento = false;
         this.fecharCompartilhar();
-        this.openAlert('Sucesso!', 'O dashboard foi compartilhado por e-mail com sucesso.', 'primary');
+        this.openAlert('Sucesso!', 'O dashboard foi compartilhado por e-mail com sucesso.', 'success');
       },
       error: (err) => {
         this.isEnviandoCompartilhamento = false;
         console.error('Erro ao compartilhar dashboard:', err);
+        const detalhe = err.error?.detail || err.message || 'Falha ao enviar e-mail pelo Gmail.';
+        this.openAlert('Falha no Envio', detalhe, 'danger');
+      }
+    });
+  }
+
+  // ==========================================
+  // COMPARTILHAR CARTEIRA (Gerente/Representante)
+  // ==========================================
+  isCompartilharCarteiraModalOpen = false;
+  compartilharCarteiraDestinatarios = '';
+  compartilharCarteiraCc = '';
+  compartilharCarteiraMensagem = '';
+  isEnviandoCompartilhamentoCarteira = false;
+  private comercialService = inject(ComercialService);
+  carteiraSemUsuario = false;
+
+  private get idGerenteCarteira(): number | null {
+    return this.gridCarteira.find(t => t.idGerente)?.idGerente ?? null;
+  }
+
+  abrirCompartilharCarteira() {
+    const idGerente = this.idGerenteCarteira;
+    if (!this.gerenteCarteira || !idGerente) return;
+    this.compartilharCarteiraDestinatarios = '';
+    this.compartilharCarteiraCc = '';
+    this.compartilharCarteiraMensagem = '';
+    this.carteiraSemUsuario = false;
+    this.isEnviandoCompartilhamentoCarteira = false;
+    this.isCompartilharCarteiraModalOpen = true;
+
+    // Já preenche com o e-mail do usuário do gerente (o campo continua livre para mais e-mails)
+    this.comercialService.emailUsuarioGerente(idGerente).subscribe({
+      next: (res) => {
+        if (res.email) {
+          if (!this.compartilharCarteiraDestinatarios.trim()) this.compartilharCarteiraDestinatarios = res.email;
+        } else {
+          this.carteiraSemUsuario = true;
+        }
+      },
+      error: () => this.carteiraSemUsuario = true
+    });
+
+    if (!this.googleAuthService.isConectado()) {
+      this.googleAuthService.verificarStatus().subscribe();
+    }
+  }
+
+  fecharCompartilharCarteira() {
+    this.isCompartilharCarteiraModalOpen = false;
+  }
+
+  enviarCompartilharCarteira() {
+    if (!this.compartilharCarteiraDestinatarios.trim()) {
+      this.openAlert('Destinatário Ausente', 'Por favor, informe ao menos um e-mail destinatário.', 'primary');
+      return;
+    }
+
+    if (!this.googleAuthService.isConectado()) {
+      this.googleAuthService.iniciarAutorizacaoPopup()
+        .then(() => this._dispararCompartilhamentoCarteira())
+        .catch((err) => {
+          this.openAlert('Autorização Necessária', err.message || 'É obrigatório conectar sua conta do Google antes de compartilhar.', 'danger');
+        });
+      return;
+    }
+
+    this._dispararCompartilhamentoCarteira();
+  }
+
+  private _dispararCompartilhamentoCarteira() {
+    const idGerente = this.idGerenteCarteira;
+    if (!idGerente) {
+      this.openAlert('Carteira vazia', 'Não há títulos em atraso nesta carteira para compartilhar.', 'primary');
+      return;
+    }
+
+    this.isEnviandoCompartilhamentoCarteira = true;
+    const formData = new FormData();
+    formData.append('destinatarios', this.compartilharCarteiraDestinatarios.trim());
+    formData.append('id_gerente', String(idGerente));
+    if (this.compartilharCarteiraCc.trim()) {
+      formData.append('copia', this.compartilharCarteiraCc.trim());
+    }
+    if (this.compartilharCarteiraMensagem.trim()) {
+      formData.append('mensagem_personalizada', this.compartilharCarteiraMensagem.trim());
+    }
+
+    this.importacoesService.compartilharCarteira(formData).subscribe({
+      next: () => {
+        this.isEnviandoCompartilhamentoCarteira = false;
+        this.fecharCompartilharCarteira();
+        this.openAlert('Sucesso!', 'O aviso com o link da carteira foi enviado por e-mail.', 'success');
+      },
+      error: (err) => {
+        this.isEnviandoCompartilhamentoCarteira = false;
+        console.error('Erro ao compartilhar carteira:', err);
         const detalhe = err.error?.detail || err.message || 'Falha ao enviar e-mail pelo Gmail.';
         this.openAlert('Falha no Envio', detalhe, 'danger');
       }
@@ -1281,7 +1379,7 @@ export class InadimplenciaComponent implements OnInit {
       next: () => {
         this.isEnviandoCompartilhamentoLogistica = false;
         this.fecharCompartilharLogistica();
-        this.openAlert('Sucesso!', 'O relatório de Logística foi compartilhado por e-mail com sucesso.', 'primary');
+        this.openAlert('Sucesso!', 'O relatório de Logística foi compartilhado por e-mail com sucesso.', 'success');
       },
       error: (err) => {
         this.isEnviandoCompartilhamentoLogistica = false;
@@ -1351,7 +1449,7 @@ export class InadimplenciaComponent implements OnInit {
       next: () => {
         this.isEnviandoCompartilhamentoComercial = false;
         this.fecharCompartilharComercial();
-        this.openAlert('Sucesso!', 'O relatório do Comercial foi compartilhado por e-mail com sucesso.', 'primary');
+        this.openAlert('Sucesso!', 'O relatório do Comercial foi compartilhado por e-mail com sucesso.', 'success');
       },
       error: (err) => {
         this.isEnviandoCompartilhamentoComercial = false;
@@ -1421,7 +1519,7 @@ export class InadimplenciaComponent implements OnInit {
       next: () => {
         this.isEnviandoCompartilhamentoPendenciasAcr = false;
         this.fecharCompartilharPendenciasAcr();
-        this.openAlert('Sucesso!', 'O relatório de Pendências ACR foi compartilhado por e-mail com sucesso.', 'primary');
+        this.openAlert('Sucesso!', 'O relatório de Pendências ACR foi compartilhado por e-mail com sucesso.', 'success');
       },
       error: (err) => {
         this.isEnviandoCompartilhamentoPendenciasAcr = false;

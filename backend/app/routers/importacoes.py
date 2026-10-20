@@ -6161,6 +6161,43 @@ def compartilhar_dashboard_inadimplencia(
         logger.error(f"Erro ao compartilhar dashboard inadimplencia: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao enviar o e-mail: {str(e)}")
 
+@router.post("/inadimplencia/dashboard/compartilhar-carteira")
+def compartilhar_carteira_inadimplencia(
+    destinatarios: str = Form(..., description="E-mails destinatários separados por vírgula"),
+    id_gerente: int = Form(..., description="Gerente da carteira"),
+    copia: Optional[str] = Form(None, description="E-mails em cópia separados por vírgula"),
+    mensagem_personalizada: Optional[str] = Form(None, description="Mensagem adicional personalizada"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Avisa por e-mail que a carteira do gerente está disponível: mensagem padrão + link
+    para a página "Minha carteira". Os dados só aparecem para o gerente logado."""
+    from app.models.gerente import Gerente
+    from app.core.links import url_frontend
+    from app.services.google_auth_service import GoogleAuthService
+    from app.services.gmail_service import GmailService
+    from app.services.carteira_service import html_email_compartilhar
+
+    gerente = db.query(Gerente).filter(Gerente.idGerente == id_gerente).first()
+    if not gerente:
+        raise HTTPException(status_code=404, detail="Gerente não encontrado.")
+
+    access_token = GoogleAuthService.obter_access_token_valido(current_user, db)
+    try:
+        resultado = GmailService.enviar_email(
+            access_token=access_token,
+            destinatarios=destinatarios,
+            assunto=f"Títulos em atraso da sua carteira — {gerente.nome}",
+            corpo_html=html_email_compartilhar(gerente.nome, url_frontend("minha-carteira"), mensagem_personalizada),
+            copia=copia,
+            anexos=[],
+            remetente_email=current_user.email
+        )
+        return {"sucesso": True, "message_id": resultado.get("messageId")}
+    except Exception as e:
+        logger.error(f"Erro ao compartilhar carteira: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao enviar o e-mail: {str(e)}")
+
 @router.post("/inadimplencia/dashboard/compartilhar-logistica")
 def compartilhar_dashboard_logistica(
     destinatarios: str = Form(..., description="E-mails destinatários separados por vírgula"),

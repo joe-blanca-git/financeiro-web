@@ -22,6 +22,7 @@ class UserResponse(UserBase):
     active: Optional[str] = 'S'
     createdAt: Optional[datetime] = None
     role: Optional[str] = 'user'
+    convitePendente: bool = False
 
     class Config:
         from_attributes = True
@@ -47,3 +48,17 @@ class UserStatusUpdate(BaseModel):
 
 class UserAdminUpdate(BaseModel):
     admin: bool
+
+# Cadastro por convite (admin): só nome, e-mail e nível de acesso
+class UserConviteCreate(BaseModel):
+    name: str
+    email: EmailStr
+    role: str = 'user'
+
+class UserRoleUpdate(BaseModel):
+    role: str
+
+# Primeiro acesso pelo link do convite
+class ConviteSenha(BaseModel):
+    token: str
+    senha: str

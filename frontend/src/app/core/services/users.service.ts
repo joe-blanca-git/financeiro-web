@@ -28,6 +28,19 @@ export class UsersService {
     return this.http.patch(`${this.API_URL}/users/${userId}/admin`, { admin });
   }
 
+  // Cadastro por convite: o usuário recebe o link para criar a própria senha
+  convidar(dados: { name: string; email: string; role: string }): Observable<User> {
+    return this.http.post<User>(`${this.API_URL}/users`, dados);
+  }
+
+  reenviarConvite(userId: string | number): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.API_URL}/users/${userId}/convite`, {});
+  }
+
+  setRole(userId: string | number, role: string): Observable<any> {
+    return this.http.patch(`${this.API_URL}/users/${userId}/role`, { role });
+  }
+
   register(userData: any): Observable<User> {
     return this.http.post<User>(`${this.API_URL}/auth/register`, userData);
   }

@@ -70,13 +70,20 @@
                 <div class="config-header">
                   <div>
                     <h2>Acesso</h2>
-                    <p class="text-muted">Aprove cadastros pendentes, bloqueie/desbloqueie usuários e gerencie senhas e níveis de acesso (Admin/Default).</p>
+                    <p class="text-muted">Cadastre usuários por convite, bloqueie/desbloqueie acessos e gerencie senhas e níveis de acesso (Administrador, Padrão e Comercial - Vendas).</p>
                   </div>
                 </div>
 
                 @if (usuariosErrorMessage) {
                 <div class="alert alert-danger d-flex align-items-center">
                   <i class="fa-solid fa-circle-exclamation me-2"></i> {{ usuariosErrorMessage }}
+                </div>
+                }
+
+                @if (usuariosSucessoMessage) {
+                <div class="alert alert-success d-flex align-items-center justify-content-between">
+                  <span><i class="fa-solid fa-circle-check me-2"></i> {{ usuariosSucessoMessage }}</span>
+                  <button type="button" class="btn-close" (click)="usuariosSucessoMessage = null" aria-label="Fechar"></button>
                 </div>
                 }
 
@@ -99,7 +106,7 @@
                       <tr>
                         <th>NOME</th>
                         <th>EMAIL</th>
-                        <th>NÃVEL DE ACESSO</th>
+                        <th>NÍVEL DE ACESSO</th>
                         <th class="text-end">AÇÕES</th>
                       </tr>
                     </thead>
@@ -108,11 +115,12 @@
                         <td class="fw-medium">
                           {{ user.name }}
                           <span *ngIf="user.active === 'N'" class="badge bg-danger ms-2" style="font-size: 0.65rem;">SEM ACESSO</span>
+                          <span *ngIf="user.convitePendente" class="badge bg-warning text-dark ms-2" style="font-size: 0.65rem;"
+                            title="Ainda não criou a senha pelo link do convite">CONVITE PENDENTE</span>
                         </td>
                         <td>{{ user.email }}</td>
                         <td>
-                          <app-badge [text]="user.role === 'admin' ? 'Administrador' : 'Padrão'"
-                            [variant]="user.role === 'admin' ? 'primary' : 'secondary'">
+                          <app-badge [text]="nivelLabel(user.role)" [variant]="nivelVariant(user.role)">
                           </app-badge>
                         </td>
                         <td class="text-end">
@@ -120,7 +128,10 @@
                             <button class="btn-icon" title="Alterar Senha" (click)="openPasswordModal(user)">
                               <i class="fa-solid fa-key"></i>
                             </button>
-                            <button class="btn-icon" title="Alterar Nível de Acesso" (click)="confirmGrantAdmin(user)">
+                            <button class="btn-icon" title="Reenviar convite de primeiro acesso" (click)="reenviarConvite(user)">
+                              <i class="fa-solid fa-envelope"></i>
+                            </button>
+                            <button class="btn-icon" title="Alterar Nível de Acesso" (click)="openRoleModal(user)">
                               <i class="fa-solid fa-shield-halved"></i>
                             </button>
                             <button class="btn-icon" [ngClass]="{'delete': user.active !== 'N'}"
@@ -552,7 +563,9 @@
                         <th style="width: 110px;">CÓDIGO</th>
                         <th>NOME</th>
                         <th class="text-center">REPRESENTANTES</th>
+                        <th>USUÁRIO</th>
                         <th>OBSERVAÇÃO</th>
+                        <th class="text-end">AÇÕES</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -563,12 +576,24 @@
                           <span class="badge rounded-pill bg-light text-secondary border px-2 py-1">{{ g.qtdRepresentantes }}</span>
                         </td>
                         <td>
+                          <span *ngIf="g.usuarioEmail">{{ g.usuarioEmail }}</span>
+                          <span *ngIf="!g.usuarioEmail" class="text-muted">Sem usuário</span>
+                        </td>
+                        <td>
                           <span *ngIf="g.obs">{{ g.obs }}</span>
                           <span *ngIf="!g.obs" class="text-muted">—</span>
                         </td>
+                        <td class="text-end">
+                          <div class="action-buttons">
+                            <button class="btn-icon text-primary" [title]="g.usuarioEmail ? 'Trocar usuário vinculado' : 'Vincular usuário'"
+                              (click)="abrirVincularUsuario(g)"><i class="fa-solid fa-link"></i></button>
+                            <button *ngIf="g.usuarioEmail" class="btn-icon text-danger ms-2" title="Desvincular usuário"
+                              (click)="confirmarDesvincularUsuario(g)"><i class="fa-solid fa-user-xmark"></i></button>
+                          </div>
+                        </td>
                       </tr>
                       <tr *ngIf="listaGerentes.length === 0">
-                        <td colspan="4" class="text-center text-muted py-4">Nenhum gerente encontrado.</td>
+                        <td colspan="6" class="text-center text-muted py-4">Nenhum gerente encontrado.</td>
                       </tr>
                     </tbody>
                   </table>
@@ -1199,16 +1224,20 @@
     </div>
 
     <div class="mb-3">
-      <label class="form-label text-muted small fw-medium">SENHA PROVISÓRIA</label>
-      <input type="password" class="form-control" formControlName="password" placeholder="Mínimo 6 caracteres">
+      <label class="form-label text-muted small fw-medium">NÍVEL DE ACESSO</label>
+      <select class="form-select" formControlName="role">
+        @for (n of niveisAcesso; track n.valor) {
+          <option [value]="n.valor">{{ n.rotulo }}</option>
+        }
+      </select>
     </div>
 
-    <div class="mb-4">
-      <label class="form-label text-muted small fw-medium">CONFIRMAR SENHA</label>
-      <input type="password" class="form-control" formControlName="confirmPassword" placeholder="Confirme a senha">
-      <small class="text-danger mt-1 d-block" *ngIf="cadastroForm.hasError('mismatch') && cadastroForm.get('confirmPassword')?.touched">
-        As senhas não coincidem.
-      </small>
+    <div class="alert alert-info small d-flex mb-4">
+      <i class="fa-solid fa-envelope-open-text me-2 mt-1"></i>
+      <span>O usuário recebe um convite por e-mail para criar a própria senha. O link vale por 8 horas.
+        @if (!googleAuthService.isConectado()) { O convite sai da sua conta Google: você será solicitado a autorizá-la. }
+        @else { Enviado por {{ googleAuthService.emailConectado() }}. }
+      </span>
     </div>
 
     @if (cadastroErrorMessage) {
@@ -1219,9 +1248,74 @@
 
     <div class="d-flex justify-content-end gap-2 pt-3 border-top">
       <app-button variant="ghost" type="button" (clicked)="closeCadastroModal()">Cancelar</app-button>
-      <app-button variant="primary" type="submit" [disabled]="cadastroForm.invalid" [loading]="isSalvandoCadastro">Cadastrar Usuário</app-button>
+      <app-button variant="primary" type="submit" [disabled]="cadastroForm.invalid" [loading]="isSalvandoCadastro">Criar e Enviar Convite</app-button>
     </div>
   </form>
+</app-modal>
+
+<!-- Modal Nível de Acesso -->
+<app-modal [isOpen]="isRoleModalOpen" title="Nível de Acesso" (closed)="closeRoleModal()">
+  <div class="p-4">
+    <p class="text-muted mb-3">Usuário: <strong>{{ selectedUser?.name }}</strong> ({{ selectedUser?.email }})</p>
+    <div class="mb-3">
+      @for (n of niveisAcesso; track n.valor) {
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="radio" name="nivelAcesso" [id]="'nivel-' + n.valor" [value]="n.valor" [(ngModel)]="roleSelecionado">
+          <label class="form-check-label" [for]="'nivel-' + n.valor">
+            <strong>{{ n.rotulo }}</strong>
+            <span class="d-block small text-muted">
+              @switch (n.valor) {
+                @case ('admin') { Acesso a todos os módulos e à gestão de usuários. }
+                @case ('comercial_vendas') { Acessa somente a própria carteira (gerente vinculado ao usuário). }
+                @default { Acesso aos módulos do sistema, sem a gestão de usuários. }
+              }
+            </span>
+          </label>
+        </div>
+      }
+    </div>
+    @if (roleErrorMessage) {
+    <div class="alert alert-danger d-flex align-items-center small">
+      <i class="fa-solid fa-circle-exclamation me-2"></i> {{ roleErrorMessage }}
+    </div>
+    }
+    <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+      <app-button variant="ghost" type="button" (clicked)="closeRoleModal()">Cancelar</app-button>
+      <app-button variant="primary" (clicked)="salvarRole()" [loading]="isSalvandoRole">Salvar</app-button>
+    </div>
+  </div>
+</app-modal>
+
+<!-- Modal Vincular Usuário ao Gerente -->
+<app-modal [isOpen]="isVincularModalOpen" [title]="'Vincular Usuário a ' + (gerenteVincular?.nome || '')" (closed)="fecharVincularUsuario()">
+  <div class="p-4">
+    <p class="text-muted mb-3">
+      Informe o e-mail do usuário que vai acessar a carteira deste gerente. O usuário precisa estar cadastrado em Acesso,
+      de preferência no nível <strong>Comercial - Vendas</strong>.
+    </p>
+    <div class="mb-3">
+      <label class="form-label text-muted small fw-medium">E-MAIL DO USUÁRIO</label>
+      <input type="email" class="form-control" [(ngModel)]="vincularEmail" placeholder="gerente@stamaria.ind.br"
+        [disabled]="isSalvandoVinculo" (keyup.enter)="salvarVinculoUsuario()">
+    </div>
+    @if (vincularErro) {
+    <div class="alert alert-danger d-flex align-items-center small">
+      <i class="fa-solid fa-circle-exclamation me-2"></i> {{ vincularErro }}
+    </div>
+    }
+    @if (vincularAviso) {
+    <div class="alert alert-warning d-flex small">
+      <i class="fa-solid fa-triangle-exclamation me-2 mt-1"></i>
+      <span>Vínculo salvo. {{ vincularAviso }}</span>
+    </div>
+    }
+    <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+      <app-button variant="ghost" type="button" (clicked)="fecharVincularUsuario()">{{ vincularAviso ? 'Fechar' : 'Cancelar' }}</app-button>
+      @if (!vincularAviso) {
+        <app-button variant="primary" (clicked)="salvarVinculoUsuario()" [loading]="isSalvandoVinculo" [disabled]="!vincularEmail.trim()">Vincular</app-button>
+      }
+    </div>
+  </div>
 </app-modal>
 
 <!-- Modal Alterar Senha -->

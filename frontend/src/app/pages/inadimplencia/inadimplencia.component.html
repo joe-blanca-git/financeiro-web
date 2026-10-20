@@ -1241,7 +1241,13 @@
                               <h6 class="mb-0 fw-semibold text-secondary">Títulos em Atraso
                                 <span class="badge rounded-pill bg-light text-secondary border ms-1 fw-normal">{{ gridCarteira.length }}</span>
                               </h6>
-                              <div class="config-toolbar mb-0">
+                              <div class="config-toolbar mb-0 d-flex align-items-center gap-2">
+                                <span [title]="gerenteCarteira ? '' : 'Selecione um gerente para compartilhar a carteira'">
+                                  <button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-2 px-3 fw-medium rounded-3"
+                                    [disabled]="!gerenteCarteira || gridCarteira.length === 0" (click)="abrirCompartilharCarteira()">
+                                    <i class="fa-regular fa-paper-plane"></i> Compartilhar
+                                  </button>
+                                </span>
                                 <div class="search-box">
                                   <i class="fa-solid fa-search text-muted position-absolute"
                                     style="left: 10px; top: 50%; transform: translateY(-50%);"></i>
@@ -2963,6 +2969,74 @@
         <app-button variant="ghost" (clicked)="fecharCompartilhar()" [disabled]="isEnviandoCompartilhamento">Cancelar</app-button>
         <app-button variant="primary" (clicked)="enviarCompartilhamento()" [loading]="isEnviandoCompartilhamento">
           <i class="fa-regular fa-paper-plane me-2" *ngIf="!isEnviandoCompartilhamento"></i>
+          Enviar E-mail
+        </app-button>
+      </div>
+    </div>
+  </ng-container>
+</app-modal>
+
+<!-- Modal Compartilhar Carteira (Gerente/Representante) -->
+<app-modal [isOpen]="isCompartilharCarteiraModalOpen" title="Compartilhar Carteira" size="md" (closed)="fecharCompartilharCarteira()">
+  <ng-container body>
+    <div class="compartilhar-container">
+
+      <div class="border rounded-3 p-3 mb-3 bg-light">
+        <div class="text-muted small text-uppercase fw-semibold mb-1" style="letter-spacing: 0.04em;">Carteira enviada</div>
+        <div class="fw-semibold">Gerente: {{ gerenteCarteira }}</div>
+      </div>
+
+      <p class="small text-muted mb-3">
+        O e-mail leva a mensagem padrão e o link para a página <strong>Minha carteira</strong>. Os dados só aparecem
+        depois do login, e cada gerente vê apenas a própria carteira.
+      </p>
+
+      @if (carteiraSemUsuario) {
+        <div class="alert alert-warning small d-flex mb-3">
+          <i class="fa-solid fa-triangle-exclamation me-2 mt-1"></i>
+          <span>Este gerente ainda não tem usuário vinculado. Vincule em Configurações → Comercial → Gerentes
+            para ele conseguir abrir a carteira pelo link.</span>
+        </div>
+      }
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold text-secondary small mb-1">Para (Destinatários)</label>
+        <div class="input-group">
+          <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-regular fa-envelope"></i></span>
+          <input type="text" class="form-control border-start-0" [(ngModel)]="compartilharCarteiraDestinatarios" placeholder="Ex: gerente@empresa.com.br" [disabled]="isEnviandoCompartilhamentoCarteira">
+        </div>
+        <div class="form-text small">Separe múltiplos e-mails por vírgula.</div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold text-secondary small mb-1">Com cópia (Cc)</label>
+        <div class="input-group">
+          <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-at"></i></span>
+          <input type="text" class="form-control border-start-0" [(ngModel)]="compartilharCarteiraCc" placeholder="E-mails em cópia (opcional)" [disabled]="isEnviandoCompartilhamentoCarteira">
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold text-secondary small mb-1">Mensagem Adicional (Opcional)</label>
+        <textarea class="form-control" rows="3" [(ngModel)]="compartilharCarteiraMensagem" placeholder="Adicione algum comentário ao e-mail..." [disabled]="isEnviandoCompartilhamentoCarteira"></textarea>
+      </div>
+
+    </div>
+  </ng-container>
+  <ng-container footer>
+    <div class="w-100 d-flex justify-content-between align-items-center">
+      <div class="text-muted small">
+        <span *ngIf="!googleAuthService.isConectado()">
+          <i class="fa-brands fa-google text-danger me-1"></i> Você será solicitado a autorizar sua conta Google ao enviar.
+        </span>
+        <span *ngIf="googleAuthService.isConectado()" class="text-success">
+          <i class="fa-solid fa-circle-check me-1"></i> Conectado como {{ googleAuthService.emailConectado() }}
+        </span>
+      </div>
+      <div class="d-flex gap-2">
+        <app-button variant="ghost" (clicked)="fecharCompartilharCarteira()" [disabled]="isEnviandoCompartilhamentoCarteira">Cancelar</app-button>
+        <app-button variant="primary" (clicked)="enviarCompartilharCarteira()" [loading]="isEnviandoCompartilhamentoCarteira">
+          <i class="fa-regular fa-paper-plane me-2" *ngIf="!isEnviandoCompartilhamentoCarteira"></i>
           Enviar E-mail
         </app-button>
       </div>

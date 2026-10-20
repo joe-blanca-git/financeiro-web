@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, tap, of, map } from 'rxjs';
 import { Router } from '@angular/router';
 import { IAuthService } from '../interfaces/auth.service';
-import { AuthResponse, AuthTokens, LoginCredentials, RegisterCredentials } from '../models/auth.model';
+import { AuthResponse, AuthTokens, ConviteInfo, LoginCredentials, RegisterCredentials } from '../models/auth.model';
 import { IEnvironmentService } from '../http/environment.service';
 import { User } from '../models/user.model';
 import { chaveStorage } from '../config/ambiente';
@@ -70,30 +70,46 @@ export class AuthService implements IAuthService {
 
   login(credentials: LoginCredentials): Observable<AuthResponse> {
     return this.http.post<any>(`${this.API_URL}/auth/login`, credentials).pipe(
-      map(response => {
-        const tokens: AuthTokens = {
-          accessToken: response.access_token,
-          expiresIn: response.expires_in
-        };
-
-        const user: User = {
-          id: response.email,
-          iduser: response.iduser,
-          email: response.email,
-          name: response.name,
-          role: response.role || 'user',
-          createdAt: response.createdAt
-        };
-        
-        return { user, tokens };
-      }),
-      tap((authResponse: AuthResponse) => {
-        // Unifica atualização de token, user e local storage
-        this.setToken(authResponse.tokens.accessToken);
-        this._currentUser.set(authResponse.user);
-        localStorage.setItem(this.USER_STORAGE_KEY, JSON.stringify(authResponse.user));
-      })
+      map(response => this.mapearLogin(response)),
+      tap(authResponse => this.iniciarSessao(authResponse))
     );
+  }
+
+  consultarConvite(token: string): Observable<ConviteInfo> {
+    return this.http.get<ConviteInfo>(`${this.API_URL}/auth/convite/${encodeURIComponent(token)}`);
+  }
+
+  // Grava a senha do primeiro acesso; a API já devolve o login (sessão iniciada)
+  concluirConvite(token: string, senha: string): Observable<AuthResponse> {
+    return this.http.post<any>(`${this.API_URL}/auth/convite`, { token, senha }).pipe(
+      map(response => this.mapearLogin(response)),
+      tap(authResponse => this.iniciarSessao(authResponse))
+    );
+  }
+
+  private mapearLogin(response: any): AuthResponse {
+    const tokens: AuthTokens = {
+      accessToken: response.access_token,
+      expiresIn: response.expires_in
+    };
+
+    const user: User = {
+      id: response.email,
+      iduser: response.iduser,
+      email: response.email,
+      name: response.name,
+      role: response.role || 'user',
+      createdAt: response.createdAt
+    };
+
+    return { user, tokens };
+  }
+
+  // Unifica atualização de token, user e local storage
+  private iniciarSessao(authResponse: AuthResponse): void {
+    this.setToken(authResponse.tokens.accessToken);
+    this._currentUser.set(authResponse.user);
+    localStorage.setItem(this.USER_STORAGE_KEY, JSON.stringify(authResponse.user));
   }
 
   register(credentials: RegisterCredentials): Observable<void> {

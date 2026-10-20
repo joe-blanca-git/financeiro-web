@@ -24,6 +24,7 @@ import {
   ImportPreviewResponse, ImportProcessarResponse, ImportNovo, ImportDivergente, ImportDesligado
 } from '../../core/services/colaboradores.service';
 import { ClientesService, Cliente } from '../../core/services/clientes.service';
+import { ComercialService, Gerente, Representante } from '../../core/services/comercial.service';
 import { CategoriasService, Categoria } from '../../core/services/categorias.service';
 import { CargosColaboradoresService, CargoColaborador } from '../../core/services/cargos-colaboradores.service';
 import { CentrosCustoService, CentroCusto } from '../../core/services/centros-custo.service';
@@ -57,6 +58,7 @@ export class ConfiguracoesCadastrosComponent implements OnInit {
   private usersService = inject(UsersService);
 
   private clientesService = inject(ClientesService);
+  private comercialService = inject(ComercialService);
   isAdmin = computed(() => this.authService.currentUser()?.role === 'admin');
 
   users = signal<User[]>([]);
@@ -506,10 +508,10 @@ export class ConfiguracoesCadastrosComponent implements OnInit {
   itemsPerPageGerentes = 10;
   totalGerentes = 0;
   totalPagesGerentes = 1;
-  listaGerentes: Colaborador[] = [];
+  listaGerentes: Gerente[] = [];
 
   carregarGerentes() {
-    this.colaboradoresService.listar(this.currentPageGerentes, this.itemsPerPageGerentes, this.searchTermGerentes, 9).subscribe({
+    this.comercialService.listarGerentes(this.currentPageGerentes, this.itemsPerPageGerentes, this.searchTermGerentes).subscribe({
       next: (res) => {
         this.listaGerentes = res.items;
         this.totalGerentes = res.total;
@@ -539,10 +541,10 @@ export class ConfiguracoesCadastrosComponent implements OnInit {
   itemsPerPageRepresentantes = 10;
   totalRepresentantes = 0;
   totalPagesRepresentantes = 1;
-  listaRepresentantes: Colaborador[] = [];
+  listaRepresentantes: Representante[] = [];
 
   carregarRepresentantes() {
-    this.colaboradoresService.listar(this.currentPageRepresentantes, this.itemsPerPageRepresentantes, this.searchTermRepresentantes, 10).subscribe({
+    this.comercialService.listarRepresentantes(this.currentPageRepresentantes, this.itemsPerPageRepresentantes, this.searchTermRepresentantes).subscribe({
       next: (res) => {
         this.listaRepresentantes = res.items;
         this.totalRepresentantes = res.total;
@@ -568,7 +570,7 @@ export class ConfiguracoesCadastrosComponent implements OnInit {
   // ATRIBUIR CLIENTES
   // ==========================================
   isClienteModalOpen = false;
-  representanteSelecionado: Colaborador | null = null;
+  representanteSelecionado: Representante | null = null;
   listaClientesAtribuir: Cliente[] = [];
   loadingClientes = false;
   savingClientes = false;
@@ -583,40 +585,17 @@ export class ConfiguracoesCadastrosComponent implements OnInit {
     );
   }
 
-  confirmarRemocaoCargo(colab: Colaborador) {
-    this.openConfirmModal(
-      'Remover Cargo',
-      `Tem certeza que deseja remover o cargo comercial de ${colab.nome}? Ele voltar\u00e1 a ser um colaborador padr\u00e3o.`,
-      () => {
-        this.isConfirmLoading = true;
-        const updateData = { idCargoColaborador: 8 };
-        
-        if (!colab.idColaborador) return;
-        this.colaboradoresService.atualizar(colab.idColaborador, updateData).subscribe({
-          next: () => {
-            this.closeConfirmModal();
-            this.carregarGerentes();
-            this.carregarRepresentantes();
-          },
-          error: (err) => {
-            console.error('Erro ao remover cargo', err);
-            this.isConfirmLoading = false;
-          }
-        });
-      }
-    );
-  }
-
-  abrirModalClientes(colab: Colaborador) {
-    this.representanteSelecionado = colab;
+  abrirModalClientes(rep: Representante) {
+    this.representanteSelecionado = rep;
     this.isClienteModalOpen = true;
     this.listaClientesAtribuir = [];
     this.searchCliente = '';
     this.loadingClientes = true;
     
-    this.clientesService.listar(colab.idColaborador).subscribe({
+    this.clientesService.listar(rep.idRepresentante).subscribe({
       next: (res) => {
-        this.listaClientesAtribuir = res;
+        // Clientes já vinculados no topo (ordenado só na abertura, para a lista não pular ao marcar)
+        this.listaClientesAtribuir = [...res].sort((a, b) => Number(b.linked) - Number(a.linked));
         this.loadingClientes = false;
       },
       error: (err) => {
@@ -637,17 +616,18 @@ export class ConfiguracoesCadastrosComponent implements OnInit {
   }
 
   salvarVinculos() {
-    if (!this.representanteSelecionado || !this.representanteSelecionado.idColaborador) return;
+    if (!this.representanteSelecionado) return;
     
     this.savingClientes = true;
     const idsVinculados = this.listaClientesAtribuir
       .filter(c => c.linked)
       .map(c => c.idclientes);
 
-    this.clientesService.vincularRepresentante(this.representanteSelecionado.idColaborador, idsVinculados).subscribe({
+    this.clientesService.vincularRepresentante(this.representanteSelecionado.idRepresentante, idsVinculados).subscribe({
       next: () => {
         this.savingClientes = false;
         this.fecharModalClientes();
+        this.carregarRepresentantes();
       },
       error: (err) => {
         console.error('Erro ao salvar vínculos', err);

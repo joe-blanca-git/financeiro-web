@@ -8,6 +8,7 @@ export interface Cliente {
   codigo: number;
   nome: string;
   linked: boolean;
+  representanteNome?: string | null;
 }
 
 @Injectable({

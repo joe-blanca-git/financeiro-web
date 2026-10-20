@@ -8,6 +8,7 @@ class ClienteBase(BaseModel):
 class ClienteResponse(ClienteBase):
     idclientes: int
     linked: bool = False
+    representanteNome: Optional[str] = None
 
     class Config:
         from_attributes = True

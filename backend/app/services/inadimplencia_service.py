@@ -327,7 +327,10 @@ class InadimplenciaService:
                 continue
 
             venc_data = vencimento.date() if isinstance(vencimento, datetime.datetime) else vencimento
-            if venc_data > data_corte:
+            # Devoluções (carteira = 'DEV') entram no banco independentemente da data de corte,
+            # pois precisam aparecer no Kanban/Logística mesmo com vencimento futuro.
+            carteira_raw = (_clean_str(linha.get("carteira")) or '').upper()
+            if venc_data > data_corte and carteira_raw != 'DEV':
                 ignoradas_nao_vencidas += 1
                 continue
 

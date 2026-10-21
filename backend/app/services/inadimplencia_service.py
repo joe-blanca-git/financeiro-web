@@ -1206,10 +1206,21 @@ class InadimplenciaService:
             self.db.add_all(novas_mensagens)
             for m in novas_mensagens:
                 if m.minha_mensagem == "N":
-                    historico = self._novo_historico(
+                    self._novo_historico(
                         id_nf=id_nf,
                         tipo="Email Recebido",
                         observacao=f"Resposta recebida de: {m.de}. Assunto: {m.assunto}",
+                        id_user=user.iduser,
+                        thread_id=m.thread_id,
+                        message_id=m.mensagem_id,
+                    )
+                elif m.minha_mensagem == "S":
+                    # Usuário respondeu diretamente pelo Gmail (fora do modal):
+                    # registra no histórico da mesma forma que o envio pelo sistema.
+                    self._novo_historico(
+                        id_nf=id_nf,
+                        tipo="Email Enviado",
+                        observacao=f"E-mail enviado via Gmail para: {m.para}. Assunto: {m.assunto}",
                         id_user=user.iduser,
                         thread_id=m.thread_id,
                         message_id=m.mensagem_id,

@@ -180,13 +180,18 @@
               <span class="google-auth-subtitle">Autorize sua conta para enviar e-mails de cobrança diretamente pelo seu remetente.</span>
             </div>
           </div>
-          <button type="button" class="btn-google-connect" (click)="conectarGoogle()" [disabled]="googleAuthService.isCarregando()">
-            @if (googleAuthService.isCarregando()) {
-              <i class="fa-solid fa-spinner fa-spin me-1"></i> Conectando...
-            } @else {
-              <i class="fa-brands fa-google me-1"></i> Conectar com Google
-            }
-          </button>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn-signature" (click)="abrirModalAssinatura()" title="Configurar Assinatura de E-mail">
+              <i class="fa-solid fa-signature me-1"></i> Assinatura
+            </button>
+            <button type="button" class="btn-google-connect" (click)="conectarGoogle()" [disabled]="googleAuthService.isCarregando()">
+              @if (googleAuthService.isCarregando()) {
+                <i class="fa-solid fa-spinner fa-spin me-1"></i> Conectando...
+              } @else {
+                <i class="fa-brands fa-google me-1"></i> Conectar com Google
+              }
+            </button>
+          </div>
         </div>
         } @else {
         <div class="google-auth-banner google-auth-banner--connected">
@@ -198,9 +203,14 @@
             <span class="connected-email">{{ googleAuthService.emailConectado() }}</span>
             }
           </div>
-          <button type="button" class="btn-google-disconnect" (click)="abrirConfirmarDesconexao()" title="Desconectar conta Google">
-            <i class="fa-solid fa-arrow-right-from-bracket me-1"></i> Desconectar
-          </button>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn-signature" (click)="abrirModalAssinatura()" title="Configurar Assinatura de E-mail">
+              <i class="fa-solid fa-signature me-1"></i> Assinatura
+            </button>
+            <button type="button" class="btn-google-disconnect" (click)="abrirConfirmarDesconexao()" title="Desconectar conta Google">
+              <i class="fa-solid fa-arrow-right-from-bracket me-1"></i> Desconectar
+            </button>
+          </div>
         </div>
         }
 
@@ -423,4 +433,50 @@
     (confirmed)="desconectarGoogle()"
     (canceled)="confirmarDesconectarOpen = false">
   </app-confirm-modal>
+
+  <!-- Modal de Configuração de Assinatura -->
+  <app-modal
+    [isOpen]="modalAssinaturaOpen"
+    title="Configurar Assinatura de E-mail"
+    icon="fa-solid fa-signature"
+    size="md"
+    (closed)="modalAssinaturaOpen = false">
+    <div class="p-3">
+      <p class="text-muted small mb-3">
+        Informe a URL pública da imagem da sua assinatura (PNG, JPG ou GIF). Ela será inserida automaticamente ao final de todos os e-mails enviados por você.
+      </p>
+      
+      <div class="mb-3">
+        <label class="form-label fw-semibold" style="font-size: 0.85rem;">URL da Imagem da Assinatura</label>
+        <input
+          type="url"
+          class="form-control"
+          placeholder="https://exemplo.com/sua-assinatura.gif"
+          [(ngModel)]="assinaturaInputUrl">
+        <small class="text-muted d-block mt-1">
+          Deixe em branco para enviar sem imagem de assinatura.
+        </small>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold text-muted" style="font-size: 0.8rem;">Pré-visualização:</label>
+        <div class="signature-preview p-3 border rounded text-center" style="min-height: 80px; display: flex; align-items: center; justify-content: center; background-color: var(--color-surface); border-color: var(--color-border);">
+          @if (assinaturaInputUrl.trim()) {
+            <img [src]="assinaturaInputUrl.trim()" alt="Pré-visualização da Assinatura" style="max-width: 100%; max-height: 120px; object-fit: contain;">
+          } @else {
+            <span class="text-muted small"><i class="fa-solid fa-image-slash me-1"></i> Nenhuma assinatura configurada (o e-mail será enviado sem imagem de assinatura).</span>
+          }
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        <app-button variant="secondary" (clicked)="modalAssinaturaOpen = false">
+          Cancelar
+        </app-button>
+        <app-button variant="primary" icon="fa-solid fa-check" [loading]="isSalvandoAssinatura" [disabled]="isSalvandoAssinatura" (clicked)="salvarAssinatura()">
+          Salvar Assinatura
+        </app-button>
+      </div>
+    </div>
+  </app-modal>
 </app-modal>

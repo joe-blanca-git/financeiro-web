@@ -6,6 +6,7 @@ import { environment } from '../../../environments/environment';
 export interface GoogleAuthStatus {
   conectado: boolean;
   email?: string | null;
+  assinatura_url?: string | null;
 }
 
 @Injectable({
@@ -16,6 +17,7 @@ export class GoogleAuthService {
 
   readonly isConectado = signal<boolean>(false);
   readonly emailConectado = signal<string | null>(null);
+  readonly assinaturaUrl = signal<string | null>(null);
   readonly isCarregando = signal<boolean>(false);
 
   constructor(private http: HttpClient) {}
@@ -29,6 +31,7 @@ export class GoogleAuthService {
       tap(status => {
         this.isConectado.set(status.conectado);
         this.emailConectado.set(status.email || null);
+        this.assinaturaUrl.set(status.assinatura_url || null);
         this.isCarregando.set(false);
       }),
       catchError(err => {
@@ -131,6 +134,17 @@ export class GoogleAuthService {
       catchError(err => {
         this.isCarregando.set(false);
         throw err;
+      })
+    );
+  }
+
+  /**
+   * Atualiza a URL pública da imagem de assinatura do usuário logado.
+   */
+  salvarAssinatura(url: string | null): Observable<{ sucesso: boolean; assinatura_url: string | null }> {
+    return this.http.patch<{ sucesso: boolean; assinatura_url: string | null }>(`${this.apiUrl}/assinatura`, { assinatura_url: url }).pipe(
+      tap(res => {
+        this.assinaturaUrl.set(res.assinatura_url || null);
       })
     );
   }

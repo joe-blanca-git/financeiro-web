@@ -24,6 +24,8 @@ import {
   ImportPreviewResponse, ImportProcessarResponse, ImportNovo, ImportDivergente, ImportDesligado
 } from '../../core/services/colaboradores.service';
 import { ClientesService, Cliente } from '../../core/services/clientes.service';
+import { ComercialService, Gerente, Representante } from '../../core/services/comercial.service';
+import { GoogleAuthService } from '../../core/services/google-auth.service';
 import { CategoriasService, Categoria } from '../../core/services/categorias.service';
 import { CargosColaboradoresService, CargoColaborador } from '../../core/services/cargos-colaboradores.service';
 import { CentrosCustoService, CentroCusto } from '../../core/services/centros-custo.service';
@@ -55,8 +57,10 @@ export class ConfiguracoesCadastrosComponent implements OnInit {
 
   private authService = inject(IAuthService);
   private usersService = inject(UsersService);
+  readonly googleAuthService = inject(GoogleAuthService);
 
   private clientesService = inject(ClientesService);
+  private comercialService = inject(ComercialService);
   isAdmin = computed(() => this.authService.currentUser()?.role === 'admin');
 
   users = signal<User[]>([]);
@@ -93,12 +97,12 @@ export class ConfiguracoesCadastrosComponent implements OnInit {
 
   constructor() {
     const fb = inject(FormBuilder);
+    // Cadastro por convite: a senha é criada pelo próprio usuário no primeiro acesso
     this.cadastroForm = fb.group({
       name: ['', Validators.required],
       email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(6)]],
-      confirmPassword: ['', Validators.required]
-    }, { validators: this.passwordMatchValidator });
+      role: ['user', Validators.required]
+    });
 
     this.passwordForm = fb.group({
       newPassword: ['', [Validators.required, Validators.minLength(6)]],
@@ -118,29 +122,131 @@ export class ConfiguracoesCadastrosComponent implements OnInit {
   passwordErrorMessage: string | null = null;
 
   openCadastroModal() {
-    this.cadastroForm.reset();
+    this.cadastroForm.reset({ name: '', email: '', role: 'user' });
     this.cadastroErrorMessage = null;
     this.isCadastroModalOpen = true;
+    if (!this.googleAuthService.isConectado()) {
+      this.googleAuthService.verificarStatus().subscribe();
+    }
   }
   closeCadastroModal() {
     this.isCadastroModalOpen = false;
   }
   onCadastroSubmit() {
     if (this.cadastroForm.invalid || this.isSalvandoCadastro) return;
-    const { name, email, password } = this.cadastroForm.value;
+    // O convite sai pela conta Google do administrador logado
+    this.comGoogleConectado(() => this._enviarCadastro(), (msg) => this.cadastroErrorMessage = msg);
+  }
+
+  private _enviarCadastro() {
+    const { name, email, role } = this.cadastroForm.value;
     this.isSalvandoCadastro = true;
     this.cadastroErrorMessage = null;
-    this.usersService.register({ name, email, password }).subscribe({
+    this.usersService.convidar({ name, email, role }).subscribe({
       next: () => {
         this.isSalvandoCadastro = false;
         this.closeCadastroModal();
+        this.usuariosSucessoMessage = `Usuário criado. O convite de primeiro acesso foi enviado para ${email}.`;
         this.carregarUsuarios();
       },
       error: (err) => {
         this.isSalvandoCadastro = false;
         this.cadastroErrorMessage = err?.error?.detail || 'Não foi possível cadastrar o usuário.';
+        this.carregarUsuarios();
       }
     });
+  }
+
+  // Executa a ação garantindo a conta Google conectada (pede autorização se preciso)
+  private comGoogleConectado(acao: () => void, onErro: (msg: string) => void) {
+    if (this.googleAuthService.isConectado()) {
+      acao();
+      return;
+    }
+    this.googleAuthService.iniciarAutorizacaoPopup()
+      .then(() => acao())
+      .catch((err) => onErro(err?.message || 'É obrigatório conectar sua conta do Google para enviar o convite.'));
+  }
+
+  // ================= NÍVEIS DE ACESSO E CONVITE =================
+  usuariosSucessoMessage: string | null = null;
+  readonly niveisAcesso = [
+    { valor: 'user', rotulo: 'Padrão' },
+    { valor: 'admin', rotulo: 'Administrador' },
+    { valor: 'comercial_vendas', rotulo: 'Comercial - Vendas' },
+  ];
+
+  nivelLabel(role: string | undefined): string {
+    return this.niveisAcesso.find(n => n.valor === role)?.rotulo || 'Padrão';
+  }
+
+  nivelVariant(role: string | undefined): 'primary' | 'secondary' | 'warning' {
+    if (role === 'admin') return 'primary';
+    if (role === 'comercial_vendas') return 'warning';
+    return 'secondary';
+  }
+
+  isRoleModalOpen = false;
+  roleSelecionado = 'user';
+  isSalvandoRole = false;
+  roleErrorMessage: string | null = null;
+
+  openRoleModal(user: User) {
+    this.selectedUser = user;
+    this.roleSelecionado = user.role || 'user';
+    this.roleErrorMessage = null;
+    this.isRoleModalOpen = true;
+  }
+
+  closeRoleModal() {
+    this.isRoleModalOpen = false;
+    this.selectedUser = null;
+  }
+
+  salvarRole() {
+    if (!this.selectedUser || this.isSalvandoRole) return;
+    const user = this.selectedUser;
+    this.isSalvandoRole = true;
+    this.roleErrorMessage = null;
+    this.usersService.setRole(user.iduser!, this.roleSelecionado).subscribe({
+      next: () => {
+        this.isSalvandoRole = false;
+        const role = this.roleSelecionado as User['role'];
+        this.users.update(users => users.map(u => u.iduser === user.iduser ? { ...u, role } : u));
+        this.closeRoleModal();
+      },
+      error: (err) => {
+        this.isSalvandoRole = false;
+        this.roleErrorMessage = err?.error?.detail || 'Não foi possível alterar o nível de acesso.';
+      }
+    });
+  }
+
+  reenviarConvite(user: User) {
+    this.openConfirmModal(
+      'Reenviar Convite',
+      `Enviar um novo convite de primeiro acesso para ${user.email}? O link anterior deixa de valer.`,
+      () => {
+        this.comGoogleConectado(() => {
+          this.usersService.reenviarConvite(user.iduser!).subscribe({
+            next: (res) => {
+              this.closeConfirmModal();
+              this.usuariosSucessoMessage = res.message;
+              this.users.update(users => users.map(u => u.iduser === user.iduser ? { ...u, convitePendente: true } : u));
+            },
+            error: (err) => {
+              this.isConfirmLoading = false;
+              this.closeConfirmModal();
+              this.usuariosErrorMessage = err?.error?.detail || 'Não foi possível reenviar o convite.';
+            }
+          });
+        }, (msg) => {
+          this.isConfirmLoading = false;
+          this.closeConfirmModal();
+          this.usuariosErrorMessage = msg;
+        });
+      }
+    );
   }
 
   openPasswordModal(user: User) {
@@ -166,25 +272,6 @@ export class ConfiguracoesCadastrosComponent implements OnInit {
         this.isSalvandoSenha = false;
         this.passwordErrorMessage = err?.error?.detail || 'Não foi possível alterar a senha.';
       }
-    });
-  }
-
-  confirmGrantAdmin(user: User) {
-    const tornarAdmin = user.role !== 'admin';
-    this.openConfirmModal('Alterar Acesso', `Deseja ${tornarAdmin ? 'conceder' : 'remover'} acesso de administrador para ${user.name}?`, () => {
-      this.usersService.setAdmin(user.iduser!, tornarAdmin).subscribe({
-        next: () => {
-          this.users.update(users => users.map(u =>
-            u.iduser === user.iduser ? { ...u, role: tornarAdmin ? 'admin' : 'user' } : u
-          ));
-          this.closeConfirmModal();
-        },
-        error: (err) => {
-          this.isConfirmLoading = false;
-          this.closeConfirmModal();
-          this.usuariosErrorMessage = err?.error?.detail || 'Não foi possível alterar o acesso do usuário.';
-        }
-      });
     });
   }
 
@@ -506,10 +593,10 @@ export class ConfiguracoesCadastrosComponent implements OnInit {
   itemsPerPageGerentes = 10;
   totalGerentes = 0;
   totalPagesGerentes = 1;
-  listaGerentes: Colaborador[] = [];
+  listaGerentes: Gerente[] = [];
 
   carregarGerentes() {
-    this.colaboradoresService.listar(this.currentPageGerentes, this.itemsPerPageGerentes, this.searchTermGerentes, 9).subscribe({
+    this.comercialService.listarGerentes(this.currentPageGerentes, this.itemsPerPageGerentes, this.searchTermGerentes).subscribe({
       next: (res) => {
         this.listaGerentes = res.items;
         this.totalGerentes = res.total;
@@ -532,6 +619,70 @@ export class ConfiguracoesCadastrosComponent implements OnInit {
     }
   }
 
+  // VINCULAR USUÁRIO AO GERENTE (login do gerente: nível Comercial - Vendas)
+  isVincularModalOpen = false;
+  gerenteVincular: Gerente | null = null;
+  vincularEmail = '';
+  isSalvandoVinculo = false;
+  vincularErro: string | null = null;
+  vincularAviso: string | null = null;
+
+  abrirVincularUsuario(g: Gerente) {
+    this.gerenteVincular = g;
+    this.vincularEmail = g.usuarioEmail || '';
+    this.vincularErro = null;
+    this.vincularAviso = null;
+    this.isVincularModalOpen = true;
+  }
+
+  fecharVincularUsuario() {
+    this.isVincularModalOpen = false;
+    this.gerenteVincular = null;
+  }
+
+  salvarVinculoUsuario() {
+    if (!this.gerenteVincular || !this.vincularEmail.trim() || this.isSalvandoVinculo) return;
+    this.isSalvandoVinculo = true;
+    this.vincularErro = null;
+    this.comercialService.vincularUsuario(this.gerenteVincular.idGerente, this.vincularEmail.trim()).subscribe({
+      next: (res) => {
+        this.isSalvandoVinculo = false;
+        this.carregarGerentes();
+        if (res.aviso) {
+          // Mantém o modal aberto para o admin ler o aviso (nível do usuário)
+          this.vincularAviso = res.aviso;
+          if (this.gerenteVincular) this.gerenteVincular = { ...this.gerenteVincular, usuarioEmail: res.usuarioEmail };
+        } else {
+          this.fecharVincularUsuario();
+        }
+      },
+      error: (err) => {
+        this.isSalvandoVinculo = false;
+        this.vincularErro = err?.error?.detail || 'Não foi possível vincular o usuário.';
+      }
+    });
+  }
+
+  confirmarDesvincularUsuario(g: Gerente) {
+    this.openConfirmModal(
+      'Desvincular Usuário',
+      `Remover o vínculo de ${g.usuarioEmail} com o gerente ${g.nome}? Ele deixa de ver a carteira.`,
+      () => {
+        this.comercialService.desvincularUsuario(g.idGerente).subscribe({
+          next: () => {
+            this.closeConfirmModal();
+            this.carregarGerentes();
+          },
+          error: (err) => {
+            this.isConfirmLoading = false;
+            this.closeConfirmModal();
+            console.error('Erro ao desvincular usuário', err);
+          }
+        });
+      }
+    );
+  }
+
   // REPRESENTANTES
   // ==========================================
   searchTermRepresentantes = '';
@@ -539,10 +690,10 @@ export class ConfiguracoesCadastrosComponent implements OnInit {
   itemsPerPageRepresentantes = 10;
   totalRepresentantes = 0;
   totalPagesRepresentantes = 1;
-  listaRepresentantes: Colaborador[] = [];
+  listaRepresentantes: Representante[] = [];
 
   carregarRepresentantes() {
-    this.colaboradoresService.listar(this.currentPageRepresentantes, this.itemsPerPageRepresentantes, this.searchTermRepresentantes, 10).subscribe({
+    this.comercialService.listarRepresentantes(this.currentPageRepresentantes, this.itemsPerPageRepresentantes, this.searchTermRepresentantes).subscribe({
       next: (res) => {
         this.listaRepresentantes = res.items;
         this.totalRepresentantes = res.total;
@@ -568,7 +719,7 @@ export class ConfiguracoesCadastrosComponent implements OnInit {
   // ATRIBUIR CLIENTES
   // ==========================================
   isClienteModalOpen = false;
-  representanteSelecionado: Colaborador | null = null;
+  representanteSelecionado: Representante | null = null;
   listaClientesAtribuir: Cliente[] = [];
   loadingClientes = false;
   savingClientes = false;
@@ -583,40 +734,17 @@ export class ConfiguracoesCadastrosComponent implements OnInit {
     );
   }
 
-  confirmarRemocaoCargo(colab: Colaborador) {
-    this.openConfirmModal(
-      'Remover Cargo',
-      `Tem certeza que deseja remover o cargo comercial de ${colab.nome}? Ele voltar\u00e1 a ser um colaborador padr\u00e3o.`,
-      () => {
-        this.isConfirmLoading = true;
-        const updateData = { idCargoColaborador: 8 };
-        
-        if (!colab.idColaborador) return;
-        this.colaboradoresService.atualizar(colab.idColaborador, updateData).subscribe({
-          next: () => {
-            this.closeConfirmModal();
-            this.carregarGerentes();
-            this.carregarRepresentantes();
-          },
-          error: (err) => {
-            console.error('Erro ao remover cargo', err);
-            this.isConfirmLoading = false;
-          }
-        });
-      }
-    );
-  }
-
-  abrirModalClientes(colab: Colaborador) {
-    this.representanteSelecionado = colab;
+  abrirModalClientes(rep: Representante) {
+    this.representanteSelecionado = rep;
     this.isClienteModalOpen = true;
     this.listaClientesAtribuir = [];
     this.searchCliente = '';
     this.loadingClientes = true;
     
-    this.clientesService.listar(colab.idColaborador).subscribe({
+    this.clientesService.listar(rep.idRepresentante).subscribe({
       next: (res) => {
-        this.listaClientesAtribuir = res;
+        // Clientes já vinculados no topo (ordenado só na abertura, para a lista não pular ao marcar)
+        this.listaClientesAtribuir = [...res].sort((a, b) => Number(b.linked) - Number(a.linked));
         this.loadingClientes = false;
       },
       error: (err) => {
@@ -637,17 +765,18 @@ export class ConfiguracoesCadastrosComponent implements OnInit {
   }
 
   salvarVinculos() {
-    if (!this.representanteSelecionado || !this.representanteSelecionado.idColaborador) return;
+    if (!this.representanteSelecionado) return;
     
     this.savingClientes = true;
     const idsVinculados = this.listaClientesAtribuir
       .filter(c => c.linked)
       .map(c => c.idclientes);
 
-    this.clientesService.vincularRepresentante(this.representanteSelecionado.idColaborador, idsVinculados).subscribe({
+    this.clientesService.vincularRepresentante(this.representanteSelecionado.idRepresentante, idsVinculados).subscribe({
       next: () => {
         this.savingClientes = false;
         this.fecharModalClientes();
+        this.carregarRepresentantes();
       },
       error: (err) => {
         console.error('Erro ao salvar vínculos', err);

@@ -6,7 +6,7 @@ from app.core import security
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User
-from app.schemas.user import UserCreate, UserLogin, UserResponse, Token
+from app.schemas.user import UserCreate, UserLogin, UserResponse, Token, ConviteSenha
 from app.api.deps import get_current_user
 
 router = APIRouter()
@@ -48,43 +48,16 @@ def login_user(user_in: UserLogin, db: Session = Depends(get_db)):
     if user.active != 'S':
         raise HTTPException(status_code=400, detail="Usuário bloqueado pelo administrador")
     
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = security.create_access_token(
-        subject=user.iduser, expires_delta=access_token_expires
-    )
-    query = text("""
-        SELECT r.name 
-        FROM roles r 
-        JOIN userrole ur ON r.idRole = ur.idRole 
-        WHERE ur.idUser = :user_id
-    """)
-    result = db.execute(query, {"user_id": user.iduser}).first()
-    role_name = result[0] if result else 'user'
-
-    return {
-        "access_token": access_token,
-        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        "iduser": user.iduser,
-        "name": user.name,
-        "email": user.email,
-        "createdAt": user.createdAt,
-        "role": role_name
-    }
+    return _resposta_login(db, user)
 
 @router.get("/me", response_model=UserResponse)
 def get_user_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Retorna os dados do usuário logado atualmente.
     """
-    query = text("""
-        SELECT r.name 
-        FROM roles r 
-        JOIN userrole ur ON r.idRole = ur.idRole 
-        WHERE ur.idUser = :user_id
-    """)
-    result = db.execute(query, {"user_id": current_user.iduser}).first()
-    role_name = result[0] if result else 'user'
-    
+    from app.services.acesso_service import obter_role
+    role_name = obter_role(db, current_user.iduser)
+
     return {
         "name": current_user.name,
         "email": current_user.email,
@@ -92,3 +65,51 @@ def get_user_me(current_user: User = Depends(get_current_user), db: Session = De
         "createdAt": current_user.createdAt,
         "role": role_name
     }
+
+
+def _resposta_login(db: Session, user: User) -> dict:
+    from app.services.acesso_service import obter_role
+    access_token = security.create_access_token(
+        subject=user.iduser, expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    return {
+        "access_token": access_token,
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "iduser": user.iduser,
+        "name": user.name,
+        "email": user.email,
+        "createdAt": user.createdAt,
+        "role": obter_role(db, user.iduser),
+    }
+
+
+@router.get("/convite/{token}")
+def consultar_convite(token: str, db: Session = Depends(get_db)):
+    """Primeiro acesso: confere se o link do convite é válido (existe e não expirou)."""
+    from app.services.acesso_service import usuario_do_convite, REGRAS_SENHA
+    user = usuario_do_convite(db, token)
+    if not user:
+        raise HTTPException(
+            status_code=410,
+            detail="Este link de primeiro acesso é inválido ou expirou. Solicite um novo convite ao departamento de T.I.",
+        )
+    return {"name": user.name, "email": user.email, "regrasSenha": REGRAS_SENHA}
+
+
+@router.post("/convite", response_model=Token)
+def concluir_primeiro_acesso(data: ConviteSenha, db: Session = Depends(get_db)):
+    """Primeiro acesso: grava a senha escolhida, inutiliza o link e já devolve o login."""
+    from app.services.acesso_service import usuario_do_convite, validar_senha, concluir_convite
+    user = usuario_do_convite(db, data.token)
+    if not user:
+        raise HTTPException(
+            status_code=410,
+            detail="Este link de primeiro acesso é inválido ou expirou. Solicite um novo convite ao departamento de T.I.",
+        )
+    erro = validar_senha(data.senha)
+    if erro:
+        raise HTTPException(status_code=400, detail=erro)
+    concluir_convite(db, user, data.senha)
+    db.commit()
+    db.refresh(user)
+    return _resposta_login(db, user)

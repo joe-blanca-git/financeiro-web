@@ -1,0 +1,94 @@
+<div class="login-wrapper">
+
+  <div class="login-illustration">
+    <div class="illustration-content">
+      <h2>
+        <img src="images/logo-nobg.png" style="margin-bottom: 100px; width: 400px;" alt="">
+        Cuidamos da sua casa, como cuidamos da nossa!
+      </h2>
+    </div>
+  </div>
+
+  <div class="login-content">
+    <div class="login-container">
+
+      <div class="login-header d-flex align-items-center flex-column justify-content-center">
+        <img src="images/logo.jpg" class="rounded-3 d-block d-sm-none mb-4" style="width: 150px;" alt="">
+        <span class="text-primary h2">Primeiro acesso</span>
+        <p class="subtitle">STAR - Sistemas Integrados Santa Maria</p>
+      </div>
+
+      @if (isAmbienteTeste) {
+        <div class="login-env-teste">
+          <span class="login-env-teste-title"><i class="fa-solid fa-flask"></i> Ambiente de Teste</span>
+          <span>Dados copiados da produção toda sexta-feira. Nada feito aqui afeta a produção.</span>
+        </div>
+      }
+
+      @if (carregando) {
+        <div class="text-center text-muted py-4">
+          <i class="fa-solid fa-circle-notch fa-spin me-2"></i> Conferindo o seu convite...
+        </div>
+      } @else if (linkInvalido) {
+        <div class="login-error-alert">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          {{ linkInvalido }}
+        </div>
+      } @else {
+        <p class="text-secondary mb-3">
+          Olá, <strong>{{ nome }}</strong>! Crie a sua senha para acessar o portal com o e-mail
+          <strong>{{ email }}</strong>.
+        </p>
+
+        @if (erro) {
+          <div class="login-error-alert">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            {{ erro }}
+          </div>
+        }
+
+        <form class="login-form" (ngSubmit)="salvar()">
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Nova senha</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="fa-solid fa-lock"></i></span>
+              <input [type]="mostrarSenha ? 'text' : 'password'" class="form-control" name="senha"
+                [(ngModel)]="senha" autocomplete="new-password" placeholder="Digite a nova senha">
+              <button type="button" class="btn btn-outline-secondary" (click)="mostrarSenha = !mostrarSenha"
+                [title]="mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'">
+                <i class="fa-regular" [class.fa-eye]="!mostrarSenha" [class.fa-eye-slash]="mostrarSenha"></i>
+              </button>
+            </div>
+          </div>
+
+          <ul class="regras-senha">
+            @for (regra of regras; track regra.texto) {
+              <li [class.ok]="regra.ok">
+                <i class="fa-solid" [class.fa-circle-check]="regra.ok" [class.fa-circle]="!regra.ok"></i>
+                {{ regra.texto }}
+              </li>
+            }
+          </ul>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Confirme a senha</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="fa-solid fa-lock"></i></span>
+              <input [type]="mostrarSenha ? 'text' : 'password'" class="form-control" name="confirmacao"
+                [(ngModel)]="confirmacao" autocomplete="new-password" placeholder="Repita a nova senha">
+            </div>
+            @if (confirmacao && !confirmacaoConfere) {
+              <div class="text-danger small mt-1">As senhas não conferem.</div>
+            }
+          </div>
+
+          <app-button variant="primary" size="lg" [loading]="salvando" [disabled]="!senhaValida || !confirmacaoConfere"
+            class="w-full">
+            Criar senha e entrar
+          </app-button>
+        </form>
+      }
+
+    </div>
+  </div>
+</div>

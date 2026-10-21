@@ -12,3 +12,7 @@ class User(Base):
     active = Column(String(1), nullable=True, default='S')
     createdAt = Column(DateTime, nullable=True, default=func.now())
     refresh_token_google = Column(String(1000), nullable=True)
+    # Convite de primeiro acesso: só o hash do token do link e a validade (8 horas)
+    convite_token_hash = Column(String(64), nullable=True, index=True)
+    convite_expira_em = Column(DateTime, nullable=True)
+    assinatura_url = Column(String(1000), nullable=True)

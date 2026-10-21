@@ -10,6 +10,7 @@ import { ConfirmModalComponent } from '../../shared/components/confirm-modal/con
 import { ModalComponent } from '../../shared/components/modal/modal.component';
 import { ImportacoesService, Importacao, ImportacaoPendenciasResponse, MensagemThreadApi } from '../../core/services/importacoes.service';
 import { GoogleAuthService } from '../../core/services/google-auth.service';
+import { ComercialService } from '../../core/services/comercial.service';
 
 export interface MensagemChat {
   id: number;
@@ -259,7 +260,7 @@ export class InadimplenciaComponent implements OnInit {
   confirmMessage = '';
   confirmText = 'Confirmar';
   cancelText = 'Cancelar';
-  confirmVariant: 'danger' | 'primary' = 'primary';
+  confirmVariant: 'danger' | 'primary' | 'success' = 'primary';
   showCancelConfirm = true;
   confirmCallback: () => void = () => {};
 
@@ -274,7 +275,7 @@ export class InadimplenciaComponent implements OnInit {
     this.isConfirmModalOpen = true;
   }
 
-  openAlert(title: string, message: string, variant: 'danger' | 'primary' = 'primary') {
+  openAlert(title: string, message: string, variant: 'danger' | 'primary' | 'success' = 'primary') {
     this.confirmTitle = title;
     this.confirmMessage = message;
     this.confirmText = 'Ok';
@@ -382,6 +383,70 @@ export class InadimplenciaComponent implements OnInit {
   pageCarteira = 1;
   kpiTotalVencidoCarteira = 0;
   kpiTotalProtestadoCarteira = 0;
+  gerenteCarteira = '';
+  representanteCarteira = '';
+
+  get opcoesGerentesCarteira(): string[] {
+    const nomes = [...(this.rankingGerentesAtraso || []), ...(this.rankingGerentesProtesto || [])].map(g => g.nome);
+    return [...new Set(nomes)].sort();
+  }
+
+  // Representantes do gerente escolhido (ou todos, sem gerente escolhido)
+  get opcoesRepresentantesCarteira(): string[] {
+    const titulos = this.gerenteCarteira
+      ? this.maioresAtrasos.filter(t => t.gerente === this.gerenteCarteira)
+      : this.maioresAtrasos;
+    return [...new Set(titulos.map(t => t.representante).filter(Boolean) as string[])].sort();
+  }
+
+  // Participação no total vencido geral (barra dos cards de destaque)
+  percentualDoVencido(valor: number): number {
+    return this.kpiTotalVencidoAtual > 0 ? Math.min(100, (valor / this.kpiTotalVencidoAtual) * 100) : 0;
+  }
+
+  // Clique nos cards/rankings filtra a grade pela carteira
+  selecionarGerenteCarteira(nome: string) {
+    this.gerenteCarteira = nome;
+    this.representanteCarteira = '';
+    this.aplicarFiltroCarteira();
+  }
+
+  selecionarRepresentanteCarteira(nome: string) {
+    this.gerenteCarteira = this.maioresAtrasos.find(t => t.representante === nome)?.gerente || '';
+    this.representanteCarteira = nome;
+    this.aplicarFiltroCarteira();
+  }
+
+  limparFiltroCarteira() {
+    this.gerenteCarteira = '';
+    this.representanteCarteira = '';
+    this.aplicarFiltroCarteira();
+  }
+
+  onGerenteCarteiraChange() {
+    this.representanteCarteira = '';
+    this.aplicarFiltroCarteira();
+  }
+
+  // Grid e totais da carteira: os totais vêm dos rankings (mesma base dos cards)
+  aplicarFiltroCarteira() {
+    const somaRanking = (lista: any[], nome: string) => (lista || []).find(x => x.nome === nome)?.valor ?? 0;
+
+    if (this.representanteCarteira) {
+      this.gridCarteira = this.maioresAtrasos.filter(t => t.representante === this.representanteCarteira);
+      this.kpiTotalVencidoCarteira = somaRanking(this.rankingRepresentantesAtraso, this.representanteCarteira);
+      this.kpiTotalProtestadoCarteira = somaRanking(this.rankingRepresentantesProtesto, this.representanteCarteira);
+    } else if (this.gerenteCarteira) {
+      this.gridCarteira = this.maioresAtrasos.filter(t => t.gerente === this.gerenteCarteira);
+      this.kpiTotalVencidoCarteira = somaRanking(this.rankingGerentesAtraso, this.gerenteCarteira);
+      this.kpiTotalProtestadoCarteira = somaRanking(this.rankingGerentesProtesto, this.gerenteCarteira);
+    } else {
+      this.gridCarteira = this.maioresAtrasos;
+      this.kpiTotalVencidoCarteira = this.kpiTotalVencidoAtual;
+      this.kpiTotalProtestadoCarteira = this.kpiTotalProtestadoAtual;
+    }
+    this.pageCarteira = 1;
+  }
 
   // Concentração de Inadimplência e Títulos Vencidos da Carteira
   gerenteMaiorAtraso: { nome: string; qtd: number; valor: number } | null = null;
@@ -814,6 +879,14 @@ export class InadimplenciaComponent implements OnInit {
         this.rankingRepresentantesAtraso = res.rankingRepresentantesAtraso;
         this.rankingRepresentantesProtesto = res.rankingRepresentantesProtesto;
 
+        // Cards "Concentração de Títulos Vencidos por Carteira": rankings vêm ordenados por valor
+        const porQtd = (lista: Array<{ nome: string; qtd: number; valor: number }>) =>
+          [...lista].sort((a, b) => b.qtd - a.qtd || b.valor - a.valor).slice(0, 5);
+        this.gerenteMaiorAtraso = this.rankingGerentesAtraso?.[0] ?? null;
+        this.representanteMaiorAtraso = this.rankingRepresentantesAtraso?.[0] ?? null;
+        this.gerentesMaisVencidos = porQtd(this.rankingGerentesAtraso || []);
+        this.representantesMaisVencidos = porQtd(this.rankingRepresentantesAtraso || []);
+
         // Contagem de títulos por cliente na lista como fallback caso backend não envie
         const qtdPorCliente: Record<string, number> = {};
         for (const item of (res.gridFinanceiro || [])) {
@@ -843,6 +916,8 @@ export class InadimplenciaComponent implements OnInit {
             isCartorio: x.status === 'CARTÓRIO' || x.status === 'PROTESTADO'
           };
         });
+
+        this.aplicarFiltroCarteira();
 
         // Pendências ACR (AN, AD, RJ, PR)
         const acrPendencias = (res.gridPendencias || []).map((x: any) => {
@@ -1137,11 +1212,108 @@ export class InadimplenciaComponent implements OnInit {
       next: () => {
         this.isEnviandoCompartilhamento = false;
         this.fecharCompartilhar();
-        this.openAlert('Sucesso!', 'O dashboard foi compartilhado por e-mail com sucesso.', 'primary');
+        this.openAlert('Sucesso!', 'O dashboard foi compartilhado por e-mail com sucesso.', 'success');
       },
       error: (err) => {
         this.isEnviandoCompartilhamento = false;
         console.error('Erro ao compartilhar dashboard:', err);
+        const detalhe = err.error?.detail || err.message || 'Falha ao enviar e-mail pelo Gmail.';
+        this.openAlert('Falha no Envio', detalhe, 'danger');
+      }
+    });
+  }
+
+  // ==========================================
+  // COMPARTILHAR CARTEIRA (Gerente/Representante)
+  // ==========================================
+  isCompartilharCarteiraModalOpen = false;
+  compartilharCarteiraDestinatarios = '';
+  compartilharCarteiraCc = '';
+  compartilharCarteiraMensagem = '';
+  isEnviandoCompartilhamentoCarteira = false;
+  private comercialService = inject(ComercialService);
+  carteiraSemUsuario = false;
+
+  private get idGerenteCarteira(): number | null {
+    return this.gridCarteira.find(t => t.idGerente)?.idGerente ?? null;
+  }
+
+  abrirCompartilharCarteira() {
+    const idGerente = this.idGerenteCarteira;
+    if (!this.gerenteCarteira || !idGerente) return;
+    this.compartilharCarteiraDestinatarios = '';
+    this.compartilharCarteiraCc = '';
+    this.compartilharCarteiraMensagem = '';
+    this.carteiraSemUsuario = false;
+    this.isEnviandoCompartilhamentoCarteira = false;
+    this.isCompartilharCarteiraModalOpen = true;
+
+    // Já preenche com o e-mail do usuário do gerente (o campo continua livre para mais e-mails)
+    this.comercialService.emailUsuarioGerente(idGerente).subscribe({
+      next: (res) => {
+        if (res.email) {
+          if (!this.compartilharCarteiraDestinatarios.trim()) this.compartilharCarteiraDestinatarios = res.email;
+        } else {
+          this.carteiraSemUsuario = true;
+        }
+      },
+      error: () => this.carteiraSemUsuario = true
+    });
+
+    if (!this.googleAuthService.isConectado()) {
+      this.googleAuthService.verificarStatus().subscribe();
+    }
+  }
+
+  fecharCompartilharCarteira() {
+    this.isCompartilharCarteiraModalOpen = false;
+  }
+
+  enviarCompartilharCarteira() {
+    if (!this.compartilharCarteiraDestinatarios.trim()) {
+      this.openAlert('Destinatário Ausente', 'Por favor, informe ao menos um e-mail destinatário.', 'primary');
+      return;
+    }
+
+    if (!this.googleAuthService.isConectado()) {
+      this.googleAuthService.iniciarAutorizacaoPopup()
+        .then(() => this._dispararCompartilhamentoCarteira())
+        .catch((err) => {
+          this.openAlert('Autorização Necessária', err.message || 'É obrigatório conectar sua conta do Google antes de compartilhar.', 'danger');
+        });
+      return;
+    }
+
+    this._dispararCompartilhamentoCarteira();
+  }
+
+  private _dispararCompartilhamentoCarteira() {
+    const idGerente = this.idGerenteCarteira;
+    if (!idGerente) {
+      this.openAlert('Carteira vazia', 'Não há títulos em atraso nesta carteira para compartilhar.', 'primary');
+      return;
+    }
+
+    this.isEnviandoCompartilhamentoCarteira = true;
+    const formData = new FormData();
+    formData.append('destinatarios', this.compartilharCarteiraDestinatarios.trim());
+    formData.append('id_gerente', String(idGerente));
+    if (this.compartilharCarteiraCc.trim()) {
+      formData.append('copia', this.compartilharCarteiraCc.trim());
+    }
+    if (this.compartilharCarteiraMensagem.trim()) {
+      formData.append('mensagem_personalizada', this.compartilharCarteiraMensagem.trim());
+    }
+
+    this.importacoesService.compartilharCarteira(formData).subscribe({
+      next: () => {
+        this.isEnviandoCompartilhamentoCarteira = false;
+        this.fecharCompartilharCarteira();
+        this.openAlert('Sucesso!', 'O aviso com o link da carteira foi enviado por e-mail.', 'success');
+      },
+      error: (err) => {
+        this.isEnviandoCompartilhamentoCarteira = false;
+        console.error('Erro ao compartilhar carteira:', err);
         const detalhe = err.error?.detail || err.message || 'Falha ao enviar e-mail pelo Gmail.';
         this.openAlert('Falha no Envio', detalhe, 'danger');
       }
@@ -1207,7 +1379,7 @@ export class InadimplenciaComponent implements OnInit {
       next: () => {
         this.isEnviandoCompartilhamentoLogistica = false;
         this.fecharCompartilharLogistica();
-        this.openAlert('Sucesso!', 'O relatório de Logística foi compartilhado por e-mail com sucesso.', 'primary');
+        this.openAlert('Sucesso!', 'O relatório de Logística foi compartilhado por e-mail com sucesso.', 'success');
       },
       error: (err) => {
         this.isEnviandoCompartilhamentoLogistica = false;
@@ -1277,7 +1449,7 @@ export class InadimplenciaComponent implements OnInit {
       next: () => {
         this.isEnviandoCompartilhamentoComercial = false;
         this.fecharCompartilharComercial();
-        this.openAlert('Sucesso!', 'O relatório do Comercial foi compartilhado por e-mail com sucesso.', 'primary');
+        this.openAlert('Sucesso!', 'O relatório do Comercial foi compartilhado por e-mail com sucesso.', 'success');
       },
       error: (err) => {
         this.isEnviandoCompartilhamentoComercial = false;
@@ -1347,7 +1519,7 @@ export class InadimplenciaComponent implements OnInit {
       next: () => {
         this.isEnviandoCompartilhamentoPendenciasAcr = false;
         this.fecharCompartilharPendenciasAcr();
-        this.openAlert('Sucesso!', 'O relatório de Pendências ACR foi compartilhado por e-mail com sucesso.', 'primary');
+        this.openAlert('Sucesso!', 'O relatório de Pendências ACR foi compartilhado por e-mail com sucesso.', 'success');
       },
       error: (err) => {
         this.isEnviandoCompartilhamentoPendenciasAcr = false;

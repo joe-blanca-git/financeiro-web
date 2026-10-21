@@ -1,42 +1,43 @@
 from sqlalchemy.orm import Session
 from app.models.cliente import Cliente
-from app.models.cliente_representante import ClienteRepresentante
+from app.models.representante import Representante
 
 class ClienteService:
     @staticmethod
     def get_clientes(db: Session, id_representante: int = None):
-        clientes = db.query(Cliente).order_by(Cliente.nome.asc()).all()
-        
-        # Se não passou representante, todos os linked serão False implicitamente pelo schema
-        # Porém, vamos formatar a resposta
-        resultado = []
-        linked_clientes_ids = set()
-        if id_representante:
-            vinculos = db.query(ClienteRepresentante.idCliente).filter(ClienteRepresentante.idRepresentante == id_representante).all()
-            linked_clientes_ids = {v[0] for v in vinculos}
+        clientes = (
+            db.query(Cliente, Representante.nome.label("representante_nome"))
+            .outerjoin(Representante, Representante.idRepresentante == Cliente.idRepresentante)
+            .order_by(Cliente.nome.asc())
+            .all()
+        )
 
-        for c in clientes:
-            resultado.append({
+        # linked: o cliente é do representante informado. representanteNome: dono atual
+        # (cada cliente tem um único representante, em clientes.idRepresentante).
+        return [
+            {
                 "idclientes": c.idclientes,
                 "codigo": c.codigo,
                 "nome": c.nome,
-                "linked": c.idclientes in linked_clientes_ids
-            })
-        
-        return resultado
+                "linked": bool(id_representante) and c.idRepresentante == id_representante,
+                "representanteNome": representante_nome,
+            }
+            for c, representante_nome in clientes
+        ]
 
     @staticmethod
     def vincular_clientes(db: Session, id_representante: int, ids_clientes: list[int]):
-        # Limpar os atuais
-        db.query(ClienteRepresentante).filter(ClienteRepresentante.idRepresentante == id_representante).delete(synchronize_session=False)
-        
-        # Inserir novos
-        for id_cliente in ids_clientes:
-            novo_vinculo = ClienteRepresentante(
-                idCliente=id_cliente,
-                idRepresentante=id_representante
+        # Desmarcados: deixam de ter representante
+        db.query(Cliente).filter(
+            Cliente.idRepresentante == id_representante,
+            ~Cliente.idclientes.in_(ids_clientes or [0]),
+        ).update({Cliente.idRepresentante: None}, synchronize_session=False)
+
+        # Marcados: passam a ser deste representante (inclusive se eram de outro)
+        if ids_clientes:
+            db.query(Cliente).filter(Cliente.idclientes.in_(ids_clientes)).update(
+                {Cliente.idRepresentante: id_representante}, synchronize_session=False
             )
-            db.add(novo_vinculo)
-        
+
         db.commit()
         return True

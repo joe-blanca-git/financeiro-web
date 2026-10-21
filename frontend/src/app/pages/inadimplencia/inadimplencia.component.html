@@ -1040,19 +1040,15 @@
                               </div>
                             </div>
                             <div class="carteira-card-body my-auto">
-                              <div *ngIf="gerenteMaiorAtraso; else emptyGerente">
-                                <div class="fw-bold text-dark text-truncate mb-1" style="font-size: 0.9rem;"
-                                  [title]="gerenteMaiorAtraso.nome">{{ gerenteMaiorAtraso.nome }}</div>
-                                <div class="d-flex align-items-center justify-content-between">
-                                  <span class="badge rounded-pill bg-light text-secondary border px-2 py-1"
-                                    style="font-size: 0.72rem;">
-                                    <i class="fa-regular fa-file-lines me-1"></i>{{ gerenteMaiorAtraso.qtd }} títulos
-                                  </span>
-                                  <strong class="text-danger"
-                                    style="font-size: 0.82rem; font-variant-numeric: tabular-nums;">
-                                    {{ gerenteMaiorAtraso.valor | currency:'BRL' }}
-                                  </strong>
+                              <div *ngIf="gerenteMaiorAtraso; else emptyGerente" class="carteira-destaque" role="button"
+                                title="Filtrar a grade por esta carteira" (click)="selecionarGerenteCarteira(gerenteMaiorAtraso.nome)">
+                                <div class="carteira-destaque-valor">{{ gerenteMaiorAtraso.valor | currency:'BRL' }}</div>
+                                <div class="carteira-destaque-nome text-truncate" [title]="gerenteMaiorAtraso.nome">{{ gerenteMaiorAtraso.nome }}</div>
+                                <div class="carteira-destaque-meta">
+                                  <span>{{ gerenteMaiorAtraso.qtd }} {{ gerenteMaiorAtraso.qtd === 1 ? 'título' : 'títulos' }}</span>
+                                  <span>{{ percentualDoVencido(gerenteMaiorAtraso.valor) | number:'1.0-0' }}% do total vencido</span>
                                 </div>
+                                <div class="carteira-share-bar"><div [style.width.%]="percentualDoVencido(gerenteMaiorAtraso.valor)"></div></div>
                               </div>
                               <ng-template #emptyGerente>
                                 <div
@@ -1080,20 +1076,15 @@
                               </div>
                             </div>
                             <div class="carteira-card-body my-auto">
-                              <div *ngIf="representanteMaiorAtraso; else emptyRep">
-                                <div class="fw-bold text-dark text-truncate mb-1" style="font-size: 0.9rem;"
-                                  [title]="representanteMaiorAtraso.nome">{{ representanteMaiorAtraso.nome }}</div>
-                                <div class="d-flex align-items-center justify-content-between">
-                                  <span class="badge rounded-pill bg-light text-secondary border px-2 py-1"
-                                    style="font-size: 0.72rem;">
-                                    <i class="fa-regular fa-file-lines me-1"></i>{{ representanteMaiorAtraso.qtd }}
-                                    títulos
-                                  </span>
-                                  <strong class="text-danger"
-                                    style="font-size: 0.82rem; font-variant-numeric: tabular-nums;">
-                                    {{ representanteMaiorAtraso.valor | currency:'BRL' }}
-                                  </strong>
+                              <div *ngIf="representanteMaiorAtraso; else emptyRep" class="carteira-destaque" role="button"
+                                title="Filtrar a grade por esta carteira" (click)="selecionarRepresentanteCarteira(representanteMaiorAtraso.nome)">
+                                <div class="carteira-destaque-valor">{{ representanteMaiorAtraso.valor | currency:'BRL' }}</div>
+                                <div class="carteira-destaque-nome text-truncate" [title]="representanteMaiorAtraso.nome">{{ representanteMaiorAtraso.nome }}</div>
+                                <div class="carteira-destaque-meta">
+                                  <span>{{ representanteMaiorAtraso.qtd }} {{ representanteMaiorAtraso.qtd === 1 ? 'título' : 'títulos' }}</span>
+                                  <span>{{ percentualDoVencido(representanteMaiorAtraso.valor) | number:'1.0-0' }}% do total vencido</span>
                                 </div>
+                                <div class="carteira-share-bar"><div [style.width.%]="percentualDoVencido(representanteMaiorAtraso.valor)"></div></div>
                               </div>
                               <ng-template #emptyRep>
                                 <div
@@ -1124,7 +1115,9 @@
                               <div *ngIf="gerentesMaisVencidos.length > 0; else emptyRankGerentes"
                                 class="carteira-mini-ranking">
                                 <div *ngFor="let g of gerentesMaisVencidos; let i = index"
-                                  class="d-flex align-items-center justify-content-between py-1 border-bottom border-light">
+                                  class="carteira-ranking-row d-flex align-items-center justify-content-between py-1 border-bottom border-light"
+                                  [class.ativo]="gerenteCarteira === g.nome" title="Filtrar a grade por esta carteira"
+                                  (click)="selecionarGerenteCarteira(g.nome)">
                                   <div class="d-flex align-items-center gap-2 overflow-hidden">
                                     <span class="ranking-pos-badge" [class.pos-1]="i === 0" [class.pos-2]="i === 1"
                                       [class.pos-3]="i === 2">{{ i + 1 }}</span>
@@ -1169,7 +1162,9 @@
                               <div *ngIf="representantesMaisVencidos.length > 0; else emptyRankReps"
                                 class="carteira-mini-ranking">
                                 <div *ngFor="let r of representantesMaisVencidos; let i = index"
-                                  class="d-flex align-items-center justify-content-between py-1 border-bottom border-light">
+                                  class="carteira-ranking-row d-flex align-items-center justify-content-between py-1 border-bottom border-light"
+                                  [class.ativo]="representanteCarteira === r.nome" title="Filtrar a grade por esta carteira"
+                                  (click)="selecionarRepresentanteCarteira(r.nome)">
                                   <div class="d-flex align-items-center gap-2 overflow-hidden">
                                     <span class="ranking-pos-badge" [class.pos-1]="i === 0" [class.pos-2]="i === 1"
                                       [class.pos-3]="i === 2">{{ i + 1 }}</span>
@@ -1205,11 +1200,21 @@
                     <div class="dash-kpi-panel border rounded-4 p-4 mb-4 border-2">
                       <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="d-flex align-items-center">
-                          <div class="config-toolbar mb-0">
-                            <select class="form-select form-select-sm" style="width: 250px;">
-                              <option value="">Selecione o Gerente...</option>
-                              <option *ngFor="let g of rankingGerentes" [value]="g.nome">{{ g.nome }}</option>
+                          <div class="config-toolbar mb-0 d-flex gap-2">
+                            <select class="form-select form-select-sm" style="width: 220px;"
+                              [(ngModel)]="gerenteCarteira" (ngModelChange)="onGerenteCarteiraChange()">
+                              <option value="">Todos os gerentes</option>
+                              <option *ngFor="let g of opcoesGerentesCarteira" [value]="g">{{ g }}</option>
                             </select>
+                            <select class="form-select form-select-sm" style="width: 220px;"
+                              [(ngModel)]="representanteCarteira" (ngModelChange)="aplicarFiltroCarteira()">
+                              <option value="">Todos os representantes</option>
+                              <option *ngFor="let r of opcoesRepresentantesCarteira" [value]="r">{{ r }}</option>
+                            </select>
+                            <button *ngIf="gerenteCarteira || representanteCarteira" type="button"
+                              class="btn btn-sm btn-link text-decoration-none px-1" (click)="limparFiltroCarteira()">
+                              <i class="fa-solid fa-xmark me-1"></i>Limpar
+                            </button>
                           </div>
                         </div>
                         <div class="d-flex gap-3 text-secondary align-items-center bg-light border px-3 py-2 rounded-3"
@@ -1233,8 +1238,16 @@
                         <div class="col-12">
                           <div class="dash-chart-card p-3 bg-white border rounded-3 shadow-sm">
                             <div class="d-flex justify-content-between align-items-center mb-3">
-                              <h6 class="mb-0 fw-semibold text-secondary">Títulos em Atraso</h6>
-                              <div class="config-toolbar mb-0">
+                              <h6 class="mb-0 fw-semibold text-secondary">Títulos em Atraso
+                                <span class="badge rounded-pill bg-light text-secondary border ms-1 fw-normal">{{ gridCarteira.length }}</span>
+                              </h6>
+                              <div class="config-toolbar mb-0 d-flex align-items-center gap-2">
+                                <span [title]="gerenteCarteira ? '' : 'Selecione um gerente para compartilhar a carteira'">
+                                  <button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-2 px-3 fw-medium rounded-3"
+                                    [disabled]="!gerenteCarteira || gridCarteira.length === 0" (click)="abrirCompartilharCarteira()">
+                                    <i class="fa-regular fa-paper-plane"></i> Compartilhar
+                                  </button>
+                                </span>
                                 <div class="search-box">
                                   <i class="fa-solid fa-search text-muted position-absolute"
                                     style="left: 10px; top: 50%; transform: translateY(-50%);"></i>
@@ -1249,7 +1262,7 @@
                                 <tr>
                                   <th>Título</th>
                                   <th>Cliente</th>
-                                  <th>Fase</th>
+                                  <th>Representante / Gerente</th>
                                   <th>Vencimento</th>
                                   <th>Status</th>
                                   <th class="text-center">Qtd Títulos</th>
@@ -1261,8 +1274,10 @@
                                 <tr *ngFor="let t of paginatedCarteira">
                                   <td>{{ t.titulo }}</td>
                                   <td>{{ t.cliente }}</td>
-                                  <td><span class="badge rounded-pill bg-light text-secondary border fw-normal">{{
-                                      t.fase }}</span></td>
+                                  <td>
+                                    <div class="fw-medium">{{ t.representante || '—' }}</div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">{{ t.gerente }}</div>
+                                  </td>
                                   <td>{{ t.vencimento | date:'dd/MM/yyyy' }}</td>
                                   <td><span
                                       class="badge status-badge bg-{{t.statusColor}} bg-opacity-10 text-{{t.statusColor}} border border-{{t.statusColor}}-subtle fw-normal px-2 py-1">{{
@@ -1270,9 +1285,8 @@
                                   <td class="text-center"><span
                                       class="badge rounded-pill bg-light text-secondary border px-2 py-1">{{ t.qtd || 1
                                       }}</span></td>
-                                  <td class="text-end"><span
-                                      class="badge rounded-pill bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1">{{
-                                      t.valor | currency:'BRL' }}</span></td>
+                                  <td class="text-end fw-semibold text-danger text-nowrap"
+                                    style="font-variant-numeric: tabular-nums;">{{ t.valor | currency:'BRL' }}</td>
                                   <td class="text-center text-nowrap">
                                     <button class="btn btn-sm bg-secondary bg-opacity-10 text-secondary border-0 p-1 me-1"
                                       title="Visualizar Tratativas" (click)="abrirTratativas(t)">
@@ -2955,6 +2969,74 @@
         <app-button variant="ghost" (clicked)="fecharCompartilhar()" [disabled]="isEnviandoCompartilhamento">Cancelar</app-button>
         <app-button variant="primary" (clicked)="enviarCompartilhamento()" [loading]="isEnviandoCompartilhamento">
           <i class="fa-regular fa-paper-plane me-2" *ngIf="!isEnviandoCompartilhamento"></i>
+          Enviar E-mail
+        </app-button>
+      </div>
+    </div>
+  </ng-container>
+</app-modal>
+
+<!-- Modal Compartilhar Carteira (Gerente/Representante) -->
+<app-modal [isOpen]="isCompartilharCarteiraModalOpen" title="Compartilhar Carteira" size="md" (closed)="fecharCompartilharCarteira()">
+  <ng-container body>
+    <div class="compartilhar-container">
+
+      <div class="border rounded-3 p-3 mb-3 bg-light">
+        <div class="text-muted small text-uppercase fw-semibold mb-1" style="letter-spacing: 0.04em;">Carteira enviada</div>
+        <div class="fw-semibold">Gerente: {{ gerenteCarteira }}</div>
+      </div>
+
+      <p class="small text-muted mb-3">
+        O e-mail leva a mensagem padrão e o link para a página <strong>Minha carteira</strong>. Os dados só aparecem
+        depois do login, e cada gerente vê apenas a própria carteira.
+      </p>
+
+      @if (carteiraSemUsuario) {
+        <div class="alert alert-warning small d-flex mb-3">
+          <i class="fa-solid fa-triangle-exclamation me-2 mt-1"></i>
+          <span>Este gerente ainda não tem usuário vinculado. Vincule em Configurações → Comercial → Gerentes
+            para ele conseguir abrir a carteira pelo link.</span>
+        </div>
+      }
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold text-secondary small mb-1">Para (Destinatários)</label>
+        <div class="input-group">
+          <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-regular fa-envelope"></i></span>
+          <input type="text" class="form-control border-start-0" [(ngModel)]="compartilharCarteiraDestinatarios" placeholder="Ex: gerente@empresa.com.br" [disabled]="isEnviandoCompartilhamentoCarteira">
+        </div>
+        <div class="form-text small">Separe múltiplos e-mails por vírgula.</div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold text-secondary small mb-1">Com cópia (Cc)</label>
+        <div class="input-group">
+          <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-at"></i></span>
+          <input type="text" class="form-control border-start-0" [(ngModel)]="compartilharCarteiraCc" placeholder="E-mails em cópia (opcional)" [disabled]="isEnviandoCompartilhamentoCarteira">
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold text-secondary small mb-1">Mensagem Adicional (Opcional)</label>
+        <textarea class="form-control" rows="3" [(ngModel)]="compartilharCarteiraMensagem" placeholder="Adicione algum comentário ao e-mail..." [disabled]="isEnviandoCompartilhamentoCarteira"></textarea>
+      </div>
+
+    </div>
+  </ng-container>
+  <ng-container footer>
+    <div class="w-100 d-flex justify-content-between align-items-center">
+      <div class="text-muted small">
+        <span *ngIf="!googleAuthService.isConectado()">
+          <i class="fa-brands fa-google text-danger me-1"></i> Você será solicitado a autorizar sua conta Google ao enviar.
+        </span>
+        <span *ngIf="googleAuthService.isConectado()" class="text-success">
+          <i class="fa-solid fa-circle-check me-1"></i> Conectado como {{ googleAuthService.emailConectado() }}
+        </span>
+      </div>
+      <div class="d-flex gap-2">
+        <app-button variant="ghost" (clicked)="fecharCompartilharCarteira()" [disabled]="isEnviandoCompartilhamentoCarteira">Cancelar</app-button>
+        <app-button variant="primary" (clicked)="enviarCompartilharCarteira()" [loading]="isEnviandoCompartilhamentoCarteira">
+          <i class="fa-regular fa-paper-plane me-2" *ngIf="!isEnviandoCompartilhamentoCarteira"></i>
           Enviar E-mail
         </app-button>
       </div>

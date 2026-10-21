@@ -1,0 +1,28 @@
+.regras-senha {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: grid;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: #64748b;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    i {
+      font-size: 0.75rem;
+      color: #cbd5e1;
+    }
+
+    &.ok {
+      color: #15803d;
+
+      i {
+        color: #16a34a;
+      }
+    }
+  }
+}

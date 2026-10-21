@@ -205,8 +205,9 @@ class GoogleAuthService:
         """
         Verifica se o usuário possui autorização ativa com o Google e tenta obter o e-mail conectado.
         """
+        assinatura = getattr(user, "assinatura_url", None)
         if not user.refresh_token_google:
-            return {"conectado": False, "email": None}
+            return {"conectado": False, "email": None, "assinatura_url": assinatura}
 
         # Tenta renovar o access_token para validar se a conexão permanece ativa
         try:
@@ -218,14 +219,14 @@ class GoogleAuthService:
                 )
                 if info_res.status_code == 200:
                     email = info_res.json().get("email")
-                    return {"conectado": True, "email": email}
-            return {"conectado": True, "email": None}
+                    return {"conectado": True, "email": email, "assinatura_url": assinatura}
+            return {"conectado": True, "email": None, "assinatura_url": assinatura}
         except HTTPException as e:
             if e.status_code == 401:
-                return {"conectado": False, "email": None}
-            return {"conectado": True, "email": None}
+                return {"conectado": False, "email": None, "assinatura_url": assinatura}
+            return {"conectado": True, "email": None, "assinatura_url": assinatura}
         except Exception:
-            return {"conectado": True, "email": None}
+            return {"conectado": True, "email": None, "assinatura_url": assinatura}
 
     @staticmethod
     def desconectar(user: User, db: Session) -> Dict[str, Any]:

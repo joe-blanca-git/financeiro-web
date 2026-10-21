@@ -146,9 +146,18 @@ export class PendenciaDetalheModalComponent implements OnChanges {
    * clientes de e-mail (Gmail, Outlook, etc.) consigam carregar a imagem.
    * Base64 é bloqueada por muitos clientes por políticas de segurança.
    */
-  readonly ASSINATURA_URL = 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjFFw0P_XxmH9v5vpY_xD7PMIP1q2rv_5mwb3CaGqd5rnz3ie-wGL7D8PieowH1fAoQt9AhuT2ehoXRV8AAErbImaEhVWn_qKwytXXoEd5QUK4Ms_fSEOZ7cJTJXmr90qTmNbbj8AcZ7-oBBwH0OXObMEr6wg6UXfzxgf2ibk8vh6fRGNLl7RRsxA_Jm9k/s1600/Composi%C3%A7%C3%A3o-1-TANIA.gif';
+  readonly ASSINATURA_PADRAO = '';
+  get ASSINATURA_URL(): string {
+    return this.googleAuthService.assinaturaUrl() || this.ASSINATURA_PADRAO;
+  }
+
   /** Flag para avisar quando a assinatura não pôde ser carregada no editor */
   assinaturaComErro = false;
+
+  // Modal de Configuração de Assinatura
+  modalAssinaturaOpen = false;
+  assinaturaInputUrl = '';
+  isSalvandoAssinatura = false;
 
   // Modais de confirmação/alerta (Design System / No native alert/confirm)
   alertaModalOpen = false;
@@ -207,7 +216,7 @@ export class PendenciaDetalheModalComponent implements OnChanges {
    * Adiciona handler onerror para avisar o usuário se a imagem não carregar.
    */
   private inserirAssinatura() {
-    if (!this.composeBodyRef || !this.card) return;
+    if (!this.composeBodyRef || !this.card || !this.ASSINATURA_URL) return;
     const el = this.composeBodyRef.nativeElement;
     const htmlAtual = el.innerHTML.trim();
 
@@ -273,7 +282,7 @@ export class PendenciaDetalheModalComponent implements OnChanges {
     const valorFormatado = (this.card.valorSaldo || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     const dataVenc = this.card.dtVencimento ? new Date(this.card.dtVencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-';
     const parcela = this.card.parccela || '-';
-    const assinaturaHtml = `<br><br><img src="${this.ASSINATURA_URL}" alt="Assinatura" style="max-width: 580px; width: 100%; height: auto; display: block;">`;
+    const assinaturaHtml = this.ASSINATURA_URL ? `<br><br><img src="${this.ASSINATURA_URL}" alt="Assinatura" style="max-width: 580px; width: 100%; height: auto; display: block;">` : '';
     const tabelaTitulos = this.montarTabelaTitulosHtml();
     const clienteRef = `<b>${this.card.fullClientName || this.card.clientName}</b>`;
 
@@ -800,6 +809,33 @@ Ficamos à disposição para esclarecimentos.<br>Atenciosamente,${assinaturaHtml
       error: (err) => {
         const msg = err.error?.detail || err.message || 'Erro ao desconectar conta Google.';
         this.mostrarAlerta('Erro ao Desconectar', msg, 'danger');
+      }
+    });
+  }
+
+  abrirModalAssinatura() {
+    this.assinaturaInputUrl = this.googleAuthService.assinaturaUrl() || '';
+    this.modalAssinaturaOpen = true;
+  }
+
+  salvarAssinatura() {
+    this.isSalvandoAssinatura = true;
+    const urlParaSalvar = this.assinaturaInputUrl.trim() || null;
+    this.googleAuthService.salvarAssinatura(urlParaSalvar).subscribe({
+      next: () => {
+        this.isSalvandoAssinatura = false;
+        this.modalAssinaturaOpen = false;
+        this.assinaturaComErro = false;
+        if (this.composeBodyRef) {
+          this.composeBodyRef.nativeElement.innerHTML = '';
+          this.inserirAssinatura();
+        }
+        this.mostrarAlerta('Assinatura Atualizada', 'Sua assinatura foi salva com sucesso.', 'success');
+      },
+      error: (err) => {
+        this.isSalvandoAssinatura = false;
+        const msg = err.error?.detail || 'Erro ao salvar assinatura.';
+        this.mostrarAlerta('Erro', msg, 'danger');
       }
     });
   }

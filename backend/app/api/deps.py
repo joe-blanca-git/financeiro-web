@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 import jwt
 from sqlalchemy.orm import Session
@@ -13,8 +13,15 @@ reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"/api/v1/auth/login"
 )
 
+# Únicas rotas liberadas para o nível Comercial - Vendas (caminho da rota, sem root_path)
+ROTAS_NIVEL_COMERCIAL = (
+    "/api/v1/auth/me",
+    "/api/v1/comercial/minha-carteira",
+)
+
+
 def get_current_user(
-    db: Session = Depends(get_db), token: str = Depends(reusable_oauth2)
+    request: Request, db: Session = Depends(get_db), token: str = Depends(reusable_oauth2)
 ) -> User:
     try:
         payload = jwt.decode(
@@ -30,6 +37,16 @@ def get_current_user(
     user = db.query(User).filter(User.iduser == int(token_data.sub)).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    # Trava central do nível Comercial - Vendas: só a carteira do próprio gerente
+    from app.services.acesso_service import obter_role, ROLE_COMERCIAL
+    if obter_role(db, user.iduser) == ROLE_COMERCIAL:
+        rota = getattr(request.scope.get("route"), "path", "")
+        if not any(rota == r or rota.startswith(r + "/") for r in ROTAS_NIVEL_COMERCIAL):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Acesso negado para o seu nível de acesso.",
+            )
     return user
 
 def get_current_active_user(

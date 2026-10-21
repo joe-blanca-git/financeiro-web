@@ -43,6 +43,11 @@ export const pagesRoutes: Routes = [
     data: { breadcrumb: 'Previsão de Caixa', icon: 'fa-solid fa-money-bill-trend-up' }
   },
   {
+    path: 'minha-carteira',
+    loadComponent: () => import('./minha-carteira/minha-carteira.component').then(m => m.MinhaCarteiraComponent),
+    data: { breadcrumb: 'Minha Carteira', icon: 'fa-solid fa-briefcase' }
+  },
+  {
     path: 'configuracoes-cadastros',
     loadComponent: () => import('./configuracoes-cadastros/configuracoes-cadastros.component').then(m => m.ConfiguracoesCadastrosComponent),
     data: { breadcrumb: 'Configurações e Cadastros' }

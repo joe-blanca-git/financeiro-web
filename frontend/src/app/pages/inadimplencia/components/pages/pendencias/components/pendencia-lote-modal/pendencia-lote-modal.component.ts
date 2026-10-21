@@ -37,8 +37,16 @@ export class PendenciaLoteModalComponent implements OnChanges {
   @ViewChild('composeBody') composeBodyRef?: ElementRef<HTMLDivElement>;
   @ViewChild('anexoInput') anexoInputRef?: ElementRef<HTMLInputElement>;
 
-  readonly ASSINATURA_URL = 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjFFw0P_XxmH9v5vpY_xD7PMIP1q2rv_5mwb3CaGqd5rnz3ie-wGL7D8PieowH1fAoQt9AhuT2ehoXRV8AAErbImaEhVWn_qKwytXXoEd5QUK4Ms_fSEOZ7cJTJXmr90qTmNbbj8AcZ7-oBBwH0OXObMEr6wg6UXfzxgf2ibk8vh6fRGNLl7RRsxA_Jm9k/s1600/Composi%C3%A7%C3%A3o-1-TANIA.gif';
+  readonly ASSINATURA_PADRAO = '';
+  get ASSINATURA_URL(): string {
+    return this.googleAuthService.assinaturaUrl() || this.ASSINATURA_PADRAO;
+  }
   assinaturaComErro = false;
+
+  // Modal de Configuração de Assinatura
+  modalAssinaturaOpen = false;
+  assinaturaInputUrl = '';
+  isSalvandoAssinatura = false;
 
   // Modais de confirmação/alerta (Design System)
   alertaModalOpen = false;
@@ -164,8 +172,35 @@ export class PendenciaLoteModalComponent implements OnChanges {
     });
   }
 
+  abrirModalAssinatura(): void {
+    this.assinaturaInputUrl = this.googleAuthService.assinaturaUrl() || '';
+    this.modalAssinaturaOpen = true;
+  }
+
+  salvarAssinatura(): void {
+    this.isSalvandoAssinatura = true;
+    const urlParaSalvar = this.assinaturaInputUrl.trim() || null;
+    this.googleAuthService.salvarAssinatura(urlParaSalvar).subscribe({
+      next: () => {
+        this.isSalvandoAssinatura = false;
+        this.modalAssinaturaOpen = false;
+        this.assinaturaComErro = false;
+        if (this.composeBodyRef) {
+          this.composeBodyRef.nativeElement.innerHTML = '';
+          this.inserirAssinatura();
+        }
+        this.mostrarAlerta('Assinatura Atualizada', 'Sua assinatura foi salva com sucesso.', 'success');
+      },
+      error: (err) => {
+        this.isSalvandoAssinatura = false;
+        const msg = err.error?.detail || 'Erro ao salvar assinatura.';
+        this.mostrarAlerta('Erro', msg, 'danger');
+      }
+    });
+  }
+
   private inserirAssinatura(): void {
-    if (!this.composeBodyRef) return;
+    if (!this.composeBodyRef || !this.ASSINATURA_URL) return;
     const el = this.composeBodyRef.nativeElement;
     const htmlAtual = el.innerHTML.trim();
 
@@ -244,7 +279,7 @@ export class PendenciaLoteModalComponent implements OnChanges {
 
     const el = this.composeBodyRef.nativeElement;
     const totalFormatado = this.valorTotalSaldo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    const assinaturaHtml = `<br><br><img src="${this.ASSINATURA_URL}" alt="Assinatura" style="max-width: 580px; width: 100%; height: auto; display: block;">`;
+    const assinaturaHtml = this.ASSINATURA_URL ? `<br><br><img src="${this.ASSINATURA_URL}" alt="Assinatura" style="max-width: 580px; width: 100%; height: auto; display: block;">` : '';
     const tabelaTitulos = this.montarTabelaTitulosHtml();
     const clientePrincipal = this.cards[0]?.fullClientName || this.cards[0]?.clientName || 'Cliente';
     const clienteRef = `<b>${clientePrincipal}</b>`;

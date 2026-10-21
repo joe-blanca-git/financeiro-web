@@ -394,6 +394,70 @@ export class InadimplenciaPublicaComponent implements OnInit {
   pageCarteira = 1;
   kpiTotalVencidoCarteira = 0;
   kpiTotalProtestadoCarteira = 0;
+  gerenteCarteira = '';
+  representanteCarteira = '';
+
+  get opcoesGerentesCarteira(): string[] {
+    const nomes = [...(this.rankingGerentesAtraso || []), ...(this.rankingGerentesProtesto || [])].map(g => g.nome);
+    return [...new Set(nomes)].sort();
+  }
+
+  // Representantes do gerente escolhido (ou todos, sem gerente escolhido)
+  get opcoesRepresentantesCarteira(): string[] {
+    const titulos = this.gerenteCarteira
+      ? this.maioresAtrasos.filter(t => t.gerente === this.gerenteCarteira)
+      : this.maioresAtrasos;
+    return [...new Set(titulos.map(t => t.representante).filter(Boolean) as string[])].sort();
+  }
+
+  // Participação no total vencido geral (barra dos cards de destaque)
+  percentualDoVencido(valor: number): number {
+    return this.kpiTotalVencidoAtual > 0 ? Math.min(100, (valor / this.kpiTotalVencidoAtual) * 100) : 0;
+  }
+
+  // Clique nos cards/rankings filtra a grade pela carteira
+  selecionarGerenteCarteira(nome: string) {
+    this.gerenteCarteira = nome;
+    this.representanteCarteira = '';
+    this.aplicarFiltroCarteira();
+  }
+
+  selecionarRepresentanteCarteira(nome: string) {
+    this.gerenteCarteira = this.maioresAtrasos.find(t => t.representante === nome)?.gerente || '';
+    this.representanteCarteira = nome;
+    this.aplicarFiltroCarteira();
+  }
+
+  limparFiltroCarteira() {
+    this.gerenteCarteira = '';
+    this.representanteCarteira = '';
+    this.aplicarFiltroCarteira();
+  }
+
+  onGerenteCarteiraChange() {
+    this.representanteCarteira = '';
+    this.aplicarFiltroCarteira();
+  }
+
+  // Grid e totais da carteira: os totais vêm dos rankings (mesma base dos cards)
+  aplicarFiltroCarteira() {
+    const somaRanking = (lista: any[], nome: string) => (lista || []).find(x => x.nome === nome)?.valor ?? 0;
+
+    if (this.representanteCarteira) {
+      this.gridCarteira = this.maioresAtrasos.filter(t => t.representante === this.representanteCarteira);
+      this.kpiTotalVencidoCarteira = somaRanking(this.rankingRepresentantesAtraso, this.representanteCarteira);
+      this.kpiTotalProtestadoCarteira = somaRanking(this.rankingRepresentantesProtesto, this.representanteCarteira);
+    } else if (this.gerenteCarteira) {
+      this.gridCarteira = this.maioresAtrasos.filter(t => t.gerente === this.gerenteCarteira);
+      this.kpiTotalVencidoCarteira = somaRanking(this.rankingGerentesAtraso, this.gerenteCarteira);
+      this.kpiTotalProtestadoCarteira = somaRanking(this.rankingGerentesProtesto, this.gerenteCarteira);
+    } else {
+      this.gridCarteira = this.maioresAtrasos;
+      this.kpiTotalVencidoCarteira = this.kpiTotalVencidoAtual;
+      this.kpiTotalProtestadoCarteira = this.kpiTotalProtestadoAtual;
+    }
+    this.pageCarteira = 1;
+  }
 
   // Concentração de Inadimplência e Títulos Vencidos da Carteira
   gerenteMaiorAtraso: { nome: string; qtd: number; valor: number } | null = null;
@@ -820,6 +884,14 @@ export class InadimplenciaPublicaComponent implements OnInit {
         this.rankingRepresentantesAtraso = res.rankingRepresentantesAtraso;
         this.rankingRepresentantesProtesto = res.rankingRepresentantesProtesto;
 
+        // Cards "Concentração de Títulos Vencidos por Carteira": rankings vêm ordenados por valor
+        const porQtd = (lista: Array<{ nome: string; qtd: number; valor: number }>) =>
+          [...lista].sort((a, b) => b.qtd - a.qtd || b.valor - a.valor).slice(0, 5);
+        this.gerenteMaiorAtraso = this.rankingGerentesAtraso?.[0] ?? null;
+        this.representanteMaiorAtraso = this.rankingRepresentantesAtraso?.[0] ?? null;
+        this.gerentesMaisVencidos = porQtd(this.rankingGerentesAtraso || []);
+        this.representantesMaisVencidos = porQtd(this.rankingRepresentantesAtraso || []);
+
         // Contagem de títulos por cliente na lista como fallback caso backend não envie
         const qtdPorCliente: Record<string, number> = {};
         for (const item of (res.gridFinanceiro || [])) {
@@ -849,6 +921,8 @@ export class InadimplenciaPublicaComponent implements OnInit {
             isCartorio: x.status === 'CARTÓRIO' || x.status === 'PROTESTADO'
           };
         });
+
+        this.aplicarFiltroCarteira();
 
         // Pendências ACR (AN, AD, RJ, PR)
         const acrPendencias = (res.gridPendencias || []).map((x: any) => {

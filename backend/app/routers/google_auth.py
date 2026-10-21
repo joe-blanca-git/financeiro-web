@@ -1,4 +1,6 @@
 import logging
+from typing import Optional
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
@@ -230,4 +232,32 @@ def desconectar_google(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erro ao desconectar conta Google: {str(e)}",
+        )
+
+
+class AssinaturaUpdate(BaseModel):
+    assinatura_url: Optional[str] = None
+
+
+@router.patch("/assinatura")
+def salvar_assinatura(
+    data: AssinaturaUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Atualiza a URL da imagem de assinatura do usuário autenticado.
+    """
+    try:
+        nova_url = data.assinatura_url.strip() if data.assinatura_url else None
+        current_user.assinatura_url = nova_url
+        db.commit()
+        db.refresh(current_user)
+        return {"sucesso": True, "assinatura_url": current_user.assinatura_url}
+    except Exception as e:
+        db.rollback()
+        logger.error("Erro ao salvar assinatura de e-mail: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao salvar assinatura: {str(e)}",
         )

@@ -15,6 +15,8 @@ from app.models.nf_pendencia import NfPendencia, VwNfPendenciaFase
 from app.models.tratativa import Tratativa
 from app.models.cliente_representante import ClienteRepresentante
 from app.models.colaborador import Colaborador
+from app.models.gerente import Gerente
+from app.models.representante import Representante
 from app.models.historico_pendencia import HistoricoPendencia
 from app.models.importacao import Importacao
 from app.models.pendencia_mensagem import PendenciaMensagem
@@ -325,7 +327,10 @@ class InadimplenciaService:
                 continue
 
             venc_data = vencimento.date() if isinstance(vencimento, datetime.datetime) else vencimento
-            if venc_data > data_corte:
+            # Devoluções (carteira = 'DEV') entram no banco independentemente da data de corte,
+            # pois precisam aparecer no Kanban/Logística mesmo com vencimento futuro.
+            carteira_raw = (_clean_str(linha.get("carteira")) or '').upper()
+            if venc_data > data_corte and carteira_raw != 'DEV':
                 ignoradas_nao_vencidas += 1
                 continue
 
@@ -1201,10 +1206,21 @@ class InadimplenciaService:
             self.db.add_all(novas_mensagens)
             for m in novas_mensagens:
                 if m.minha_mensagem == "N":
-                    historico = self._novo_historico(
+                    self._novo_historico(
                         id_nf=id_nf,
                         tipo="Email Recebido",
                         observacao=f"Resposta recebida de: {m.de}. Assunto: {m.assunto}",
+                        id_user=user.iduser,
+                        thread_id=m.thread_id,
+                        message_id=m.mensagem_id,
+                    )
+                elif m.minha_mensagem == "S":
+                    # Usuário respondeu diretamente pelo Gmail (fora do modal):
+                    # registra no histórico da mesma forma que o envio pelo sistema.
+                    self._novo_historico(
+                        id_nf=id_nf,
+                        tipo="Email Enviado",
+                        observacao=f"E-mail enviado via Gmail para: {m.para}. Assunto: {m.assunto}",
                         id_user=user.iduser,
                         thread_id=m.thread_id,
                         message_id=m.mensagem_id,
@@ -1781,33 +1797,30 @@ class InadimplenciaService:
         )
         ranking_clientes_protesto = [{"cliente": r.cliente, "qtd": r.qtd, "valor": float(r.valor)} for r in top_clientes_protesto]
 
-        # 7. Rankings Gerentes e Representantes
-        ranking_gerentes_atraso = []
-        ranking_gerentes_protesto = []
-        
-        rep_atraso_db = (
-            self.db.query(Colaborador.nome, func.count(VwNfPendenciaFase.idnfpendencias).label('qtd'), func.sum(VwNfPendenciaFase.valorSaldo).label('valor'))
-            .select_from(VwNfPendenciaFase)
-            .join(ClienteRepresentante, ClienteRepresentante.idCliente == VwNfPendenciaFase.idCliente)
-            .join(Colaborador, Colaborador.idColaborador == ClienteRepresentante.idRepresentante)
-            .filter(VwNfPendenciaFase.fase == 'FINANCEIRO', VwNfPendenciaFase.dtVencimento < hoje_datetime)
-            .group_by(Colaborador.nome)
-            .order_by(desc('valor'))
-            .limit(10).all()
-        )
-        ranking_representantes_atraso = [{"nome": r.nome, "qtd": r.qtd, "valor": float(r.valor or 0)} for r in rep_atraso_db]
+        # 7. Rankings Gerentes e Representantes (título -> cliente -> representante -> gerente).
+        # Listas completas ordenadas por valor; o frontend deriva os cards de maior valor e de
+        # mais títulos a partir delas.
+        def ranking_carteira(entidade, *filtros):
+            query = (
+                self.db.query(entidade.nome, func.count(VwNfPendenciaFase.idnfpendencias).label('qtd'), func.sum(VwNfPendenciaFase.valorSaldo).label('valor'))
+                .select_from(VwNfPendenciaFase)
+                .join(Cliente, Cliente.idclientes == VwNfPendenciaFase.idCliente)
+                .join(Representante, Representante.idRepresentante == Cliente.idRepresentante)
+            )
+            if entidade is Gerente:
+                query = query.join(Gerente, Gerente.idGerente == Representante.idGerente)
+            linhas = (
+                query.filter(*filtros, VwNfPendenciaFase.dtVencimento < hoje_datetime)
+                .group_by(entidade.nome)
+                .order_by(desc('valor'))
+                .all()
+            )
+            return [{"nome": r.nome, "qtd": r.qtd, "valor": float(r.valor or 0)} for r in linhas]
 
-        rep_protesto_db = (
-            self.db.query(Colaborador.nome, func.count(VwNfPendenciaFase.idnfpendencias).label('qtd'), func.sum(VwNfPendenciaFase.valorSaldo).label('valor'))
-            .select_from(VwNfPendenciaFase)
-            .join(ClienteRepresentante, ClienteRepresentante.idCliente == VwNfPendenciaFase.idCliente)
-            .join(Colaborador, Colaborador.idColaborador == ClienteRepresentante.idRepresentante)
-            .filter(VwNfPendenciaFase.status == 'PROTESTADO', VwNfPendenciaFase.dtVencimento < hoje_datetime)
-            .group_by(Colaborador.nome)
-            .order_by(desc('valor'))
-            .limit(10).all()
-        )
-        ranking_representantes_protesto = [{"nome": r.nome, "qtd": r.qtd, "valor": float(r.valor or 0)} for r in rep_protesto_db]
+        ranking_gerentes_atraso = ranking_carteira(Gerente, VwNfPendenciaFase.fase == 'FINANCEIRO')
+        ranking_gerentes_protesto = ranking_carteira(Gerente, VwNfPendenciaFase.status == 'PROTESTADO')
+        ranking_representantes_atraso = ranking_carteira(Representante, VwNfPendenciaFase.fase == 'FINANCEIRO')
+        ranking_representantes_protesto = ranking_carteira(Representante, VwNfPendenciaFase.status == 'PROTESTADO')
 
         # 8. Dashboard Comercial - Acordos
         kpi_total_acordos = self.db.query(func.sum(VwNfPendenciaFase.valorSaldo)).filter(
@@ -1854,9 +1867,15 @@ class InadimplenciaService:
                 VwNfPendenciaFase.dtVencimento,
                 VwNfPendenciaFase.valorSaldo,
                 VwNfPendenciaFase.fase,
-                VwNfPendenciaFase.status
+                VwNfPendenciaFase.status,
+                Representante.idRepresentante,
+                Representante.nome.label('representante_nome'),
+                Gerente.idGerente,
+                Gerente.nome.label('gerente_nome'),
             )
             .outerjoin(Cliente, Cliente.idclientes == VwNfPendenciaFase.idCliente)
+            .outerjoin(Representante, Representante.idRepresentante == Cliente.idRepresentante)
+            .outerjoin(Gerente, Gerente.idGerente == Representante.idGerente)
             .filter(VwNfPendenciaFase.fase == 'FINANCEIRO', VwNfPendenciaFase.dtVencimento < hoje_datetime)
             .order_by(VwNfPendenciaFase.dtVencimento.asc())
             .limit(1000) # Previne payloads excessivamente gigantes
@@ -1905,7 +1924,11 @@ class InadimplenciaService:
                 "valor": float(g.valorSaldo or 0),
                 "fase": g.fase,
                 "status": g.status,
-                "qtd": qtd_titulos_cliente.get(g.cliente_nome, 1)
+                "qtd": qtd_titulos_cliente.get(g.cliente_nome, 1),
+                "idRepresentante": g.idRepresentante,
+                "representante": g.representante_nome,
+                "idGerente": g.idGerente,
+                "gerente": g.gerente_nome,
             })
 
         grid_sem_entrega_db = self.db.query(VwNfPendenciaFase, Cliente.nome.label('cliente_nome')).outerjoin(Cliente, Cliente.idclientes == VwNfPendenciaFase.idCliente).filter(VwNfPendenciaFase.fase == 'LOGISTICA', VwNfPendenciaFase.status == 'SEM DATA DE ENTREGA', VwNfPendenciaFase.dtVencimento < hoje_datetime).order_by(VwNfPendenciaFase.dtVencimento.asc()).all()

@@ -566,6 +566,65 @@
   .carteira-empty-card {
     min-height: 50px;
   }
+
+  // Destaques (maior valor em atraso): valor em evidência + participação no total
+  .carteira-destaque {
+    cursor: pointer;
+  }
+
+  .carteira-destaque-valor {
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #dc2626;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .carteira-destaque-nome {
+    margin-top: 2px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .carteira-destaque-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 0.72rem;
+    color: #64748b;
+  }
+
+  .carteira-share-bar {
+    height: 4px;
+    margin-top: 6px;
+    border-radius: 2px;
+    background-color: #f1f5f9;
+    overflow: hidden;
+
+    > div {
+      height: 100%;
+      border-radius: 2px;
+      background-color: #ef4444;
+    }
+  }
+
+  // Linhas dos rankings: clicáveis, a selecionada fica marcada
+  .carteira-ranking-row {
+    cursor: pointer;
+    padding-left: 4px;
+    padding-right: 4px;
+    border-radius: 6px;
+    transition: background-color 0.15s ease;
+
+    &:hover {
+      background-color: #f8fafc;
+    }
+
+    &.ativo {
+      background-color: #eff6ff;
+    }
+  }
 }
 
 // SUPORTE AO DARK MODE GLOBAL
@@ -601,6 +660,36 @@
   .carteira-summary-card {
     background-color: rgba(255, 255, 255, 0.04) !important;
     border-color: rgba(255, 255, 255, 0.08) !important;
+
+    .carteira-destaque-valor {
+      color: #f87171;
+    }
+
+    .carteira-destaque-nome {
+      color: #e2e8f0;
+    }
+
+    .carteira-destaque-meta {
+      color: #94a3b8;
+    }
+
+    .carteira-share-bar {
+      background-color: rgba(255, 255, 255, 0.08);
+
+      > div {
+        background-color: #f87171;
+      }
+    }
+
+    .carteira-ranking-row {
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+      }
+
+      &.ativo {
+        background-color: rgba(59, 130, 246, 0.15);
+      }
+    }
 
     .ranking-pos-badge {
       background-color: rgba(255, 255, 255, 0.1);

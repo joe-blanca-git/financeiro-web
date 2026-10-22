@@ -497,6 +497,386 @@ html, body {
       color: var(--color-text-primary) !important;
     }
   }
+
+  .card, .card-header, .card-body, .card-footer {
+    background-color: var(--color-surface) !important;
+    border-color: var(--color-border-light) !important;
+    color: var(--color-text-secondary) !important;
+  }
+
+  .list-group-item {
+    background-color: var(--color-surface) !important;
+    border-color: var(--color-border-light) !important;
+    color: var(--color-text-secondary) !important;
+  }
+
+  .input-group-text {
+    background-color: var(--color-surface-hover) !important;
+    border-color: var(--color-border) !important;
+    color: var(--color-text-muted) !important;
+  }
+
+  .form-check-input {
+    background-color: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+
+    &:checked {
+      background-color: var(--color-primary) !important;
+      border-color: var(--color-primary) !important;
+    }
+  }
+
+  // Previsão de Caixa & Painéis Financeiros
+  .dash-kpi-panel {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    background-color: rgba(255, 255, 255, 0.02) !important;
+  }
+
+  .kpi-metric-card {
+    background-color: #1e1e1e !important;
+    border-color: #333333 !important;
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6) !important;
+    }
+
+    .kpi-header .kpi-label {
+      color: #8e8e93 !important;
+    }
+
+    .kpi-footer {
+      border-top-color: #2e2e2e !important;
+      .kpi-subtext {
+        color: #8e8e93 !important;
+      }
+    }
+  }
+
+  .bloco-operacional {
+    background-color: #1e1e1e !important;
+    border-color: #333333 !important;
+
+    .bloco-header {
+      background-color: #1e1e1e !important;
+      border-bottom-color: #2e2e2e !important;
+      .bloco-title {
+        color: #f4f4f5 !important;
+      }
+    }
+
+    .bloco-body {
+      background-color: #161616 !important;
+    }
+  }
+
+  .subcoluna {
+    background-color: #1e1e1e !important;
+    border-color: #333333 !important;
+
+    &.subcoluna-bb {
+      background-color: rgba(234, 179, 8, 0.08) !important;
+      border-color: rgba(234, 179, 8, 0.25) !important;
+
+      .subcoluna-header {
+        background-color: rgba(234, 179, 8, 0.12) !important;
+        border-bottom-color: rgba(234, 179, 8, 0.2) !important;
+      }
+    }
+
+    &.subcoluna-itau {
+      background-color: rgba(249, 115, 22, 0.08) !important;
+      border-color: rgba(249, 115, 22, 0.25) !important;
+
+      .subcoluna-header {
+        background-color: rgba(249, 115, 22, 0.12) !important;
+        border-bottom-color: rgba(249, 115, 22, 0.2) !important;
+      }
+    }
+
+    &.subcoluna-carteira {
+      background-color: rgba(6, 182, 212, 0.08) !important;
+      border-color: rgba(6, 182, 212, 0.25) !important;
+
+      .subcoluna-header {
+        background-color: rgba(6, 182, 212, 0.12) !important;
+        border-bottom-color: rgba(6, 182, 212, 0.2) !important;
+      }
+    }
+
+    &.subcoluna-boleto {
+      background-color: rgba(59, 130, 246, 0.08) !important;
+      border-color: rgba(59, 130, 246, 0.25) !important;
+
+      .subcoluna-header {
+        background-color: rgba(59, 130, 246, 0.12) !important;
+        border-bottom-color: rgba(59, 130, 246, 0.2) !important;
+      }
+    }
+
+    .subcoluna-header {
+      background-color: #1e1e1e !important;
+      border-bottom-color: #2e2e2e !important;
+
+      .subcoluna-title, .subcoluna-total {
+        color: #f4f4f5 !important;
+      }
+      .subcoluna-subtitle {
+        color: #8e8e93 !important;
+      }
+    }
+  }
+
+  .card-item-caixa {
+    background-color: #232323 !important;
+    border-color: #333333 !important;
+
+    &:hover {
+      background-color: #282828 !important;
+      border-color: #4a4a4a !important;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    .card-item-valor, .card-item-nome {
+      color: #f4f4f5 !important;
+    }
+
+    .card-item-detalhe {
+      color: #8e8e93 !important;
+
+      .categoria-tag {
+        background-color: #2f2f2f !important;
+        color: #d4d4d8 !important;
+
+        &.provisao-tag {
+          background-color: #27272a !important;
+          color: #e4e4e7 !important;
+          border: 1px solid #3f3f46 !important;
+        }
+      }
+
+      .documento-tag {
+        background-color: rgba(59, 130, 246, 0.2) !important;
+        color: #93c5fd !important;
+      }
+    }
+
+    .card-item-actions {
+      border-top-color: #2e2e2e !important;
+
+      .btn-card-action.secondary,
+      .btn-inline-detalhes,
+      .btn-inline-historico {
+        background-color: #282828 !important;
+        border-color: #3d3d3d !important;
+        color: #d4d4d8 !important;
+
+        &:hover {
+          background-color: #333333 !important;
+          color: #ffffff !important;
+        }
+      }
+    }
+  }
+
+  .toggle-provisao-wrapper {
+    background-color: #1e1e1e !important;
+    border-color: #333333 !important;
+
+    &:hover {
+      background-color: #2a2a2a !important;
+      border-color: #555555 !important;
+    }
+
+    .toggle-switch-track {
+      background-color: #3a3a3a !important;
+      &.active {
+        background-color: #52525b !important;
+      }
+    }
+
+    .toggle-switch-label.active {
+      color: #f4f4f5 !important;
+    }
+  }
+
+  .score-badge {
+    &.score-high {
+      background-color: rgba(16, 185, 129, 0.2) !important;
+      color: #34d399 !important;
+      border-color: rgba(16, 185, 129, 0.35) !important;
+    }
+    &.score-medium {
+      background-color: rgba(245, 158, 11, 0.2) !important;
+      color: #fbbf24 !important;
+      border-color: rgba(245, 158, 11, 0.35) !important;
+    }
+    &.score-low {
+      background-color: rgba(239, 68, 68, 0.2) !important;
+      color: #f87171 !important;
+      border-color: rgba(239, 68, 68, 0.35) !important;
+    }
+  }
+
+  .banco-logo-badge {
+    &.bb {
+      background-color: rgba(234, 179, 8, 0.25) !important;
+      color: #fde047 !important;
+    }
+    &.itau {
+      background-color: rgba(249, 115, 22, 0.25) !important;
+      color: #fb923c !important;
+    }
+    &.provisao-badge {
+      background-color: #27272a !important;
+      color: #f4f4f5 !important;
+      border: 1px solid #3f3f46 !important;
+    }
+  }
+
+  .modalidade-icon {
+    &.carteira {
+      background-color: rgba(6, 182, 212, 0.2) !important;
+      color: #22d3ee !important;
+    }
+    &.boleto {
+      background-color: rgba(59, 130, 246, 0.2) !important;
+      color: #60a5fa !important;
+    }
+  }
+
+  .btn-card-action.provisao-btn,
+  .btn-inline-detalhes.provisao-btn {
+    background-color: #27272a !important;
+    border-color: #3f3f46 !important;
+    color: #f4f4f5 !important;
+
+    &:hover {
+      background-color: #3f3f46 !important;
+      border-color: #52525b !important;
+      color: #ffffff !important;
+    }
+  }
+
+  .cliente-info-header {
+    background-color: #252525 !important;
+    border-color: #333333 !important;
+  }
+
+  .custom-upload-zone {
+    background-color: #1a1a1a !important;
+    border-color: #2e2e2e !important;
+
+    .idle-upload-container {
+      .idle-icon-box {
+        background: rgba(16, 185, 129, 0.12) !important;
+        border-color: rgba(16, 185, 129, 0.25) !important;
+        i {
+          color: #34d399 !important;
+        }
+      }
+      .idle-text-content {
+        .idle-title {
+          color: #f4f4f5 !important;
+        }
+        .idle-subtitle {
+          color: #a1a1aa !important;
+        }
+      }
+    }
+
+    &:hover {
+      background-color: #222222 !important;
+      border-color: #3b82f6 !important;
+    }
+
+    &.is-loading {
+      background-color: rgba(59, 130, 246, 0.1) !important;
+      border-color: #3b82f6 !important;
+
+      .processing-spinner-box {
+        background: rgba(59, 130, 246, 0.15) !important;
+        border-color: rgba(59, 130, 246, 0.3) !important;
+        i {
+          color: #60a5fa !important;
+        }
+      }
+      .processing-file-content {
+        .processing-file-title {
+          color: #93c5fd !important;
+        }
+        .processing-file-status {
+          color: #a1a1aa !important;
+          .processing-pct {
+            color: #60a5fa !important;
+          }
+        }
+      }
+    }
+
+    &.has-file {
+      background-color: rgba(16, 185, 129, 0.08) !important;
+      border-color: rgba(16, 185, 129, 0.35) !important;
+
+      &:hover {
+        background-color: rgba(16, 185, 129, 0.12) !important;
+        border-color: #10b981 !important;
+      }
+
+      .processed-file-icon-box {
+        background: rgba(16, 185, 129, 0.15) !important;
+        border-color: rgba(16, 185, 129, 0.3) !important;
+        i {
+          color: #34d399 !important;
+        }
+        .badge-status-check {
+          background: #10b981 !important;
+          border-color: #1a1a1a !important;
+          color: #ffffff !important;
+        }
+      }
+
+      .processed-file-content {
+        .processed-file-title {
+          color: #f4f4f5 !important;
+        }
+        .processed-file-badge {
+          color: #34d399 !important;
+          .status-pulse-dot {
+            background: #34d399 !important;
+            box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.25) !important;
+          }
+        }
+      }
+
+      .btn-replace-file {
+        background: #27272a !important;
+        border-color: #3f3f46 !important;
+        color: #d4d4d8 !important;
+
+        &:hover {
+          background: #3f3f46 !important;
+          color: #ffffff !important;
+          border-color: #34d399 !important;
+        }
+      }
+    }
+  }
+
+  .mini-kpi-box {
+    background-color: #1e1e1e !important;
+    border-color: #333333 !important;
+  }
+
+  .detalhes-pagar-content, .simulacao-receber-content {
+    .bg-light {
+      background-color: #252525 !important;
+      border-color: #333333 !important;
+    }
+    .bg-white {
+      background-color: #1e1e1e !important;
+      border-color: #333333 !important;
+    }
+  }
 }
 
 // CONFIGURATION & MAIN SIDEBAR NAV OVERRIDES
@@ -622,4 +1002,69 @@ html, body {
       }
     }
   }
+
+  .erp-modal-body {
+    background-color: var(--color-surface) !important;
+    color: var(--color-text-secondary) !important;
+  }
+
+  .erp-modal-footer {
+    border-top: 1px solid var(--color-border-light) !important;
+    background-color: var(--color-surface) !important;
+  }
 }
+
+// ERP-EMPTY-STATE & ERROR-STATE OVERRIDES
+.erp-empty-state {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+
+  .icon-wrapper {
+    background-color: var(--color-surface-hover) !important;
+  }
+
+  .title {
+    color: var(--color-text-primary) !important;
+  }
+
+  .description {
+    color: var(--color-text-muted) !important;
+  }
+}
+
+.erp-error-state {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+
+  .title {
+    color: var(--color-text-primary) !important;
+  }
+
+  .message {
+    color: var(--color-text-muted) !important;
+  }
+}
+
+// BREADCRUMB OVERRIDES
+.breadcrumb {
+  ol li, ul li {
+    color: var(--color-text-muted) !important;
+
+    a {
+      color: var(--color-text-muted) !important;
+
+      &:hover {
+        color: var(--color-primary) !important;
+      }
+    }
+
+    .separator {
+      color: var(--color-text-muted) !important;
+    }
+
+    &:last-child {
+      color: var(--color-text-primary) !important;
+    }
+  }
+}
+

@@ -72,7 +72,7 @@ from app.api.deps import get_current_user
 from app.routers import (
     auth, google_auth, categorias, empresas, cargos_colaboradores,
     colaboradores, centros_custo, unidades, importacoes, users,
-    plano_saude, despesas_viagens, clientes, comercial
+    plano_saude, despesas_viagens, clientes, comercial, previsao_caixa
 )
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Autenticação"])
@@ -90,3 +90,5 @@ app.include_router(plano_saude.router, prefix="/api/v1/plano-saude", tags=["Plan
 app.include_router(despesas_viagens.router, prefix="/api/v1/despesas-viagens", tags=["Despesas de Viagens"], dependencies=[Depends(get_current_user)])
 app.include_router(clientes.router, prefix="/api/v1/clientes", tags=["Clientes"], dependencies=[Depends(get_current_user)])
 app.include_router(comercial.router, prefix="/api/v1/comercial", tags=["Comercial"], dependencies=[Depends(get_current_user)])
+app.include_router(previsao_caixa.router, prefix="/api/v1/previsao-caixa", tags=["Previsão de Caixa"], dependencies=[Depends(get_current_user)])
+

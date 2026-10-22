@@ -12,8 +12,13 @@
       
       <ul class="main-nav">
         <li>
-          <button class="main-nav-link active" title="Visão Geral">
-            <i class="fa-solid fa-chart-line"></i> <span class="nav-text">Visão Geral</span>
+          <button class="main-nav-link" [class.active]="activeSidebarTab() === 'dashboards'" (click)="activeSidebarTab.set('dashboards')" title="Dashboards">
+            <i class="fa-solid fa-chart-line"></i> <span class="nav-text">Dashboards</span>
+          </button>
+        </li>
+        <li>
+          <button class="main-nav-link" [class.active]="activeSidebarTab() === 'atualizacao-dados'" (click)="activeSidebarTab.set('atualizacao-dados')" title="Atualização de Dados">
+            <i class="fa-solid fa-database"></i> <span class="nav-text">Atualização de Dados</span>
           </button>
         </li>
       </ul>
@@ -21,28 +26,1078 @@
 
     <!-- Main Content -->
     <main class="main-content">
+      @if (activeSidebarTab() === 'dashboards') {
       <div class="config-layout">
-        <div class="dashboard-header border-bottom">
-          <h3 class="mb-0 p-3" style="font-size: 1.5rem; font-weight: 600;">Previsão de Caixa</h3>
-        </div>
         
-        <div class="p-4 d-flex justify-content-center align-items-center" style="flex: 1; flex-direction: column;">
-          <div class="text-center" style="max-width: 600px;">
-            <div class="mb-4">
-              <i class="fa-solid fa-money-bill-trend-up text-primary" style="font-size: 4rem; opacity: 0.8;"></i>
-            </div>
-            <h4 class="mb-3" style="font-size: 1.25rem; font-weight: 600;">Módulo de Previsão de Caixa</h4>
-            <p class="text-muted mb-4" style="font-size: 0.95rem; line-height: 1.5;">
-              Este módulo foca no monitoramento do dinheiro que vai entrar para cobrir o que vai sair. 
-              Realizaremos a conciliação dos recebimentos de clientes com os pagamentos previstos da empresa para projetar a necessidade de recursos futuros.
-            </p>
-            <app-button variant="primary" icon="fa-solid fa-folder-open" (clicked)="abrirModulo()">
-              Abrir módulo
-            </app-button>
+        <!-- Dashboard Header com Abas Horizontais (Idêntico ao Módulo Pendências) -->
+        <div class="dashboard-header d-flex justify-content-between align-items-center border-bottom pt-2 px-1">
+          <ul class="config-nav mb-0 border-bottom-0 pb-0">
+            <li class="config-nav-item">
+              <button class="config-nav-link" [class.active]="activeNav() === 'visao-geral'" (click)="activeNav.set('visao-geral')">
+                Visão Geral
+              </button>
+            </li>
+          </ul>
+
+          <div class="d-flex gap-3 text-secondary align-items-center info-hoje-pill border px-3 py-1 rounded-3 mb-2" style="font-size: 0.82rem;">
+            <span class="text-muted"><i class="fa-regular fa-calendar me-2"></i>Hoje, {{ dataHoje }}</span>
+            <div class="vr text-secondary opacity-25 mx-1" style="height: 14px;"></div>
+            <span><span class="text-muted me-1">Previsão Saldo:</span> <strong [class.text-success]="isSaldoPrevisibilidadePositivo()" [class.text-danger]="!isSaldoPrevisibilidadePositivo()">{{ formatarMoeda(saldoPrevisibilidade()) }}</strong></span>
           </div>
         </div>
+
+        <!-- Dashboard Content -->
+        <div class="dashboard-content px-1 pb-1 pt-2 d-flex flex-column flex-grow-1" style="min-height: 0;">
+
+          <!-- ============================================================== -->
+          <!-- 1. TOP SECTION: 6 KPI CARDS (DASHBOARD PREVISIBILIDADE)        -->
+          <!-- ============================================================== -->
+          <section class="kpis-dashboard-grid mb-2">
+            
+            <!-- Card: Valor Investido Resgatável -->
+            <div class="kpi-metric-card kpi-investimento">
+              <div class="kpi-header">
+                <span class="kpi-label">Investimento Resgatável</span>
+              </div>
+              <div class="kpi-value text-info">{{ formatarMoeda(valorInvestidoResgatavel()) }}</div>
+            </div>
+
+            <!-- Card 1: Total em Provisão -->
+            <div class="kpi-metric-card kpi-provisao">
+              <div class="kpi-header">
+                <span class="kpi-label">Total a Provisão</span>
+                <div class="kpi-icon-badge provisao-icon">
+                  <i class="fa-solid fa-receipt"></i>
+                </div>
+              </div>
+              <div class="kpi-value">{{ formatarMoeda(totalProvisao()) }}</div>
+              <div class="kpi-footer">
+                <span class="kpi-subtext">
+                  <i class="fa-solid fa-layer-group me-1"></i>{{ qtdProvisoes() }} provisões ativas
+                </span>
+              </div>
+            </div>
+
+            <!-- Card 2: Total a Pagar -->
+            <div class="kpi-metric-card kpi-pagar">
+              <div class="kpi-header">
+                <span class="kpi-label">Total a Pagar</span>
+                <div class="kpi-icon-badge pagar-icon">
+                  <i class="fa-solid fa-arrow-trend-down"></i>
+                </div>
+              </div>
+              <div class="kpi-value text-danger">{{ formatarMoeda(totalPagar()) }}</div>
+              <div class="kpi-footer d-flex justify-content-between">
+                <span class="kpi-subtext">BB: {{ formatarMoeda(totalBB()) }}</span>
+                <span class="kpi-subtext">Itaú: {{ formatarMoeda(totalItau()) }}</span>
+              </div>
+            </div>
+
+            <!-- Card 3: Total a Receber -->
+            <div class="kpi-metric-card kpi-receber">
+              <div class="kpi-header">
+                <span class="kpi-label">Total a Receber</span>
+                <div class="kpi-icon-badge receber-icon">
+                  <i class="fa-solid fa-arrow-trend-up"></i>
+                </div>
+              </div>
+              <div class="kpi-value text-success">{{ formatarMoeda(totalReceber()) }}</div>
+              <div class="kpi-footer d-flex justify-content-between">
+                <span class="kpi-subtext">Cart.: {{ formatarMoeda(totalCarteira()) }}</span>
+                <span class="kpi-subtext">Boleto: {{ formatarMoeda(totalBoleto()) }}</span>
+              </div>
+            </div>
+
+            <!-- Card 4: Previsão <= 80% (Atenção / Risco) -->
+            <div class="kpi-metric-card kpi-score-baixo">
+              <div class="kpi-header">
+                <span class="kpi-label">Previsão &le; 80% de Chance</span>
+                <div class="kpi-icon-badge score-baixo-icon">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+              </div>
+              <div class="kpi-value text-warning">{{ formatarMoeda(receberMenorIgual80()) }}</div>
+            </div>
+
+            <!-- Card 5: Previsão > 80% (Alta Certeza) -->
+            <div class="kpi-metric-card kpi-score-alto">
+              <div class="kpi-header">
+                <span class="kpi-label">Previsão &gt; 80% de Chance</span>
+                <div class="kpi-icon-badge score-alto-icon">
+                  <i class="fa-solid fa-shield-halved"></i>
+                </div>
+              </div>
+              <div class="kpi-value text-primary">{{ formatarMoeda(receberMaior80()) }}</div>
+            </div>
+
+            <!-- Card 6: Previsão de Saldo (Sobrar ou Faltar) -->
+            <div class="kpi-metric-card kpi-saldo" [class.superavit]="isSaldoPrevisibilidadePositivo()" [class.deficit]="!isSaldoPrevisibilidadePositivo()">
+              <div class="kpi-header">
+                <span class="kpi-label">Previsão de Saldo (Projetado)</span>
+                <div class="kpi-icon-badge saldo-icon">
+                  <i class="fa-solid fa-scale-balanced"></i>
+                </div>
+              </div>
+              <div class="kpi-value" [class.text-success]="isSaldoPrevisibilidadePositivo()" [class.text-danger]="!isSaldoPrevisibilidadePositivo()">
+                {{ formatarMoeda(saldoPrevisibilidade()) }}
+              </div>
+              <div class="kpi-footer text-end">
+                <span class="saldo-nominal-text" title="Saldo sem ponderação de score: Receber Total - Pagar Total">
+                  Nominal: <strong>{{ formatarMoeda(saldoRealNominal()) }}</strong>
+                </span>
+              </div>
+            </div>
+
+          </section>
+
+          <!-- ============================================================== -->
+          <!-- 2. MAIN SECTION: CONTAS A PAGAR & CONTAS A RECEBER             -->
+          <!-- ============================================================== -->
+          <div class="fluxo-operacional-grid">
+
+            <!-- ========================================== -->
+            <!-- ÁREA ESQUERDA: CONTAS A PAGAR             -->
+            <!-- ========================================== -->
+            <div class="bloco-operacional painel-pagar">
+              
+              <!-- Cabeçalho do Bloco Pagar -->
+              <div class="bloco-header">
+                <div class="d-flex align-items-center justify-content-between w-100 mb-2">
+                  <div class="d-flex align-items-center gap-2">
+                    <h4 class="bloco-title mb-0">Contas a Pagar</h4>
+                    <span class="contador-badge">{{ somenteProvisao() ? contasProvisao().length : (contasBB().length + contasItau().length) }}</span>
+                  </div>
+
+                  <!-- Botão/Switch Toggle Provisão -->
+                  <div class="toggle-provisao-wrapper" (click)="toggleSomenteProvisao()" role="button" tabindex="0">
+                    <span class="toggle-switch-track" [class.active]="somenteProvisao()">
+                      <span class="toggle-switch-thumb"></span>
+                    </span>
+                    <span class="toggle-switch-label" [class.active]="somenteProvisao()">
+                      <i class="fa-solid fa-receipt me-1"></i> Provisão
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Barra de Pesquisa Contas a Pagar -->
+                <div class="bloco-toolbar">
+                  <div class="search-box w-100">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input
+                      type="text"
+                      class="form-control form-control-sm search-input"
+                      placeholder="Pesquisar fornecedor, descrição ou documento..."
+                      [ngModel]="pesquisaPagar()"
+                      (ngModelChange)="pesquisaPagar.set($event)"
+                    />
+                    @if (pesquisaPagar()) {
+                      <button class="btn btn-sm btn-clear-search" (click)="pesquisaPagar.set('')">
+                        <i class="fa-solid fa-xmark"></i>
+                      </button>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <!-- Conteúdo Dinâmico Contas a Pagar -->
+              <div class="bloco-body">
+                
+                <!-- MODO NORMAL: Duas Colunas (Banco do Brasil e Itaú) -->
+                @if (!somenteProvisao()) {
+                  <div class="subcolunas-grid">
+                    
+                    <!-- Subcoluna 1: Banco do Brasil -->
+                    <div class="subcoluna subcoluna-bb">
+                      <div class="subcoluna-header bb-header">
+                        <div class="d-flex align-items-center gap-2">
+                          <span class="banco-logo-badge bb">BB</span>
+                          <span class="subcoluna-title">Banco do Brasil</span>
+                        </div>
+                        <span class="subcoluna-total">{{ formatarMoeda(totalBB()) }}</span>
+                      </div>
+
+                      <div class="cards-scroll-container">
+                        @for (item of contasBB(); track item.id) {
+                          <div class="card-item-caixa pagar-card">
+                            <div class="card-item-top">
+                              <span class="card-item-valor">{{ formatarMoeda(item.valor) }}</span>
+                            </div>
+
+                            <div class="card-item-nome" title="{{ item.favorecido }}">
+                              {{ item.favorecido }}
+                            </div>
+
+                            <div class="card-item-detalhe">
+                              <div class="d-flex align-items-center gap-2">
+                                <span class="categoria-tag">{{ item.categoria }}</span>
+                                <span class="vencimento-text">
+                                  <i class="fa-regular fa-calendar me-1"></i>{{ item.dataVencimento }}
+                                </span>
+                              </div>
+                              <button class="btn-inline-detalhes" (click)="abrirDetalhesPagar(item)">
+                                <i class="fa-regular fa-eye me-1"></i> Detalhes
+                              </button>
+                            </div>
+                          </div>
+                        } @empty {
+                          <div class="empty-coluna-state">
+                            <i class="fa-solid fa-inbox text-muted"></i>
+                            <span>Nenhum pagamento encontrado</span>
+                          </div>
+                        }
+                      </div>
+                    </div>
+
+                    <!-- Subcoluna 2: Itaú -->
+                    <div class="subcoluna subcoluna-itau">
+                      <div class="subcoluna-header itau-header">
+                        <div class="d-flex align-items-center gap-2">
+                          <span class="banco-logo-badge itau">IT</span>
+                          <span class="subcoluna-title">Itaú</span>
+                        </div>
+                        <span class="subcoluna-total">{{ formatarMoeda(totalItau()) }}</span>
+                      </div>
+
+                      <div class="cards-scroll-container">
+                        @for (item of contasItau(); track item.id) {
+                          <div class="card-item-caixa pagar-card">
+                            <div class="card-item-top">
+                              <span class="card-item-valor">{{ formatarMoeda(item.valor) }}</span>
+                            </div>
+
+                            <div class="card-item-nome" title="{{ item.favorecido }}">
+                              {{ item.favorecido }}
+                            </div>
+
+                            <div class="card-item-detalhe">
+                              <div class="d-flex align-items-center gap-2">
+                                <span class="categoria-tag">{{ item.categoria }}</span>
+                                <span class="vencimento-text">
+                                  <i class="fa-regular fa-calendar me-1"></i>{{ item.dataVencimento }}
+                                </span>
+                              </div>
+                              <button class="btn-inline-detalhes" (click)="abrirDetalhesPagar(item)">
+                                <i class="fa-regular fa-eye me-1"></i> Detalhes
+                              </button>
+                            </div>
+                          </div>
+                        } @empty {
+                          <div class="empty-coluna-state">
+                            <i class="fa-solid fa-inbox text-muted"></i>
+                            <span>Nenhum pagamento encontrado</span>
+                          </div>
+                        }
+                      </div>
+                    </div>
+
+                  </div>
+                }
+
+                <!-- MODO PROVISÃO: Exclusivo para Provisões -->
+                @else {
+                  <div class="subcolunas-grid provisao-full-grid">
+                    <div class="subcoluna w-100">
+                      <div class="subcoluna-header provisao-header">
+                        <div class="d-flex align-items-center gap-2">
+                          <span class="banco-logo-badge provisao-badge">PR</span>
+                          <div>
+                            <span class="subcoluna-title">Títulos e Encargos em Provisão</span>
+                            <div class="small text-muted">Valores previstos para competências futuras</div>
+                          </div>
+                        </div>
+                        <span class="subcoluna-total">{{ formatarMoeda(totalContasProvisao()) }}</span>
+                      </div>
+
+                      <div class="cards-scroll-container">
+                        @for (item of contasProvisao(); track item.id) {
+                          <div class="card-item-caixa provisao-card">
+                            <div class="card-item-top">
+                              <span class="card-item-valor">{{ formatarMoeda(item.valor) }}</span>
+                            </div>
+
+                            <div class="card-item-nome" title="{{ item.favorecido }}">
+                              {{ item.favorecido }}
+                            </div>
+
+                            <div class="card-item-detalhe">
+                              <div class="d-flex align-items-center gap-2">
+                                <span class="categoria-tag provisao-tag">{{ item.categoria }}</span>
+                                <span class="vencimento-text">
+                                  <i class="fa-regular fa-calendar me-1"></i>Prev. {{ item.dataVencimento }}
+                                </span>
+                              </div>
+                              <button class="btn-inline-detalhes" (click)="abrirDetalhesPagar(item)">
+                                <i class="fa-regular fa-eye me-1"></i> Detalhes
+                              </button>
+                            </div>
+                          </div>
+                        } @empty {
+                          <div class="empty-coluna-state">
+                            <i class="fa-solid fa-receipt text-muted"></i>
+                            <span>Nenhuma provisão encontrada com o filtro atual</span>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                }
+
+              </div>
+
+            </div>
+
+            <!-- ========================================== -->
+            <!-- ÁREA DIREITA: CONTAS A RECEBER            -->
+            <!-- ========================================== -->
+            <div class="bloco-operacional painel-receber">
+              
+              <!-- Cabeçalho do Bloco Receber -->
+              <div class="bloco-header">
+                <div class="d-flex align-items-center justify-content-between w-100 mb-2">
+                  <div class="d-flex align-items-center gap-2">
+                    <h4 class="bloco-title mb-0">Contas a Receber</h4>
+                    <span class="contador-badge receber">{{ contasCarteira().length + contasBoleto().length }}</span>
+                  </div>
+                </div>
+
+                <!-- Barra de Pesquisa Contas a Receber -->
+                <div class="bloco-toolbar">
+                  <div class="search-box w-100">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input
+                      type="text"
+                      class="form-control form-control-sm search-input"
+                      placeholder="Pesquisar cliente ou documento..."
+                      [ngModel]="pesquisaReceber()"
+                      (ngModelChange)="pesquisaReceber.set($event)"
+                    />
+                    @if (pesquisaReceber()) {
+                      <button class="btn btn-sm btn-clear-search" (click)="pesquisaReceber.set('')">
+                        <i class="fa-solid fa-xmark"></i>
+                      </button>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <!-- Conteúdo Contas a Receber: Duas Colunas (Carteira e Boleto) -->
+              <div class="bloco-body">
+                <div class="subcolunas-grid">
+                  
+                  <!-- Subcoluna 1: Carteira (Transferências / TED / PIX) -->
+                  <div class="subcoluna subcoluna-carteira">
+                    <div class="subcoluna-header carteira-header">
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="modalidade-icon carteira">
+                          <i class="fa-solid fa-money-bill-transfer"></i>
+                        </span>
+                        <div>
+                          <span class="subcoluna-title">Carteira</span>
+                          <span class="subcoluna-subtitle">TED / PIX / Depósitos</span>
+                        </div>
+                      </div>
+                      <span class="subcoluna-total text-success">{{ formatarMoeda(totalCarteira()) }}</span>
+                    </div>
+
+                    <div class="cards-scroll-container">
+                      @for (item of contasCarteira(); track item.id) {
+                        <div class="card-item-caixa receber-card">
+                          <div class="card-item-top">
+                            <span class="card-item-valor text-success">{{ formatarMoeda(item.valor) }}</span>
+                            <!-- SCORE NO CANTO SUPERIOR DIREITO -->
+                            <span class="score-badge" [ngClass]="getScoreBadgeClass(item.score)" title="Score de pontualidade do cliente: {{ item.score }}%">
+                              <i class="fa-solid fa-star me-1"></i>Score {{ item.score }}%
+                            </span>
+                          </div>
+
+                          <div class="card-item-nome" title="{{ item.clienteNome }}">
+                            {{ item.clienteNome }}
+                          </div>
+
+                          <div class="card-item-detalhe">
+                            <div class="d-flex align-items-center gap-2">
+                              <span class="documento-tag">{{ item.documento }}</span>
+                              <span class="vencimento-text">
+                                <i class="fa-regular fa-calendar-check me-1"></i>{{ item.dataVencimento }}
+                              </span>
+                            </div>
+                            <button class="btn-inline-historico" (click)="abrirHistoricoCliente(item)">
+                              <i class="fa-solid fa-clock-rotate-left me-1"></i> Histórico
+                            </button>
+                          </div>
+                        </div>
+                      } @empty {
+                        <div class="empty-coluna-state">
+                          <i class="fa-solid fa-inbox text-muted"></i>
+                          <span>Nenhum recebimento em carteira</span>
+                        </div>
+                      }
+                    </div>
+                  </div>
+
+                  <!-- Subcoluna 2: Boleto -->
+                  <div class="subcoluna subcoluna-boleto">
+                    <div class="subcoluna-header boleto-header">
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="modalidade-icon boleto">
+                          <i class="fa-solid fa-barcode"></i>
+                        </span>
+                        <div>
+                          <span class="subcoluna-title">Boleto</span>
+                          <span class="subcoluna-subtitle">Cobrança Bancária</span>
+                        </div>
+                      </div>
+                      <span class="subcoluna-total text-success">{{ formatarMoeda(totalBoleto()) }}</span>
+                    </div>
+
+                    <div class="cards-scroll-container">
+                      @for (item of contasBoleto(); track item.id) {
+                        <div class="card-item-caixa receber-card">
+                          <div class="card-item-top">
+                            <span class="card-item-valor text-success">{{ formatarMoeda(item.valor) }}</span>
+                            <!-- SCORE NO CANTO SUPERIOR DIREITO -->
+                            <span class="score-badge" [ngClass]="getScoreBadgeClass(item.score)" title="Score de pontualidade do cliente: {{ item.score }}%">
+                              <i class="fa-solid fa-star me-1"></i>Score {{ item.score }}%
+                            </span>
+                          </div>
+
+                          <div class="card-item-nome" title="{{ item.clienteNome }}">
+                            {{ item.clienteNome }}
+                          </div>
+
+                          <div class="card-item-detalhe">
+                            <div class="d-flex align-items-center gap-2">
+                              <span class="documento-tag">{{ item.documento }}</span>
+                              <span class="vencimento-text">
+                                <i class="fa-regular fa-calendar-check me-1"></i>{{ item.dataVencimento }}
+                              </span>
+                            </div>
+                            <button class="btn-inline-historico" (click)="abrirHistoricoCliente(item)">
+                              <i class="fa-solid fa-clock-rotate-left me-1"></i> Histórico
+                            </button>
+                          </div>
+                        </div>
+                      } @empty {
+                        <div class="empty-coluna-state">
+                          <i class="fa-solid fa-inbox text-muted"></i>
+                          <span>Nenhum boleto encontrado</span>
+                        </div>
+                      }
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+            <!-- Fim do painel-receber -->
+
+          </div>
+          <!-- Fim do fluxo-operacional-grid -->
+
+        </div>
+        <!-- Fim do dashboard-content -->
+
+    </div>
+    <!-- Fim do config-layout -->
+    } @else if (activeSidebarTab() === 'atualizacao-dados') {
+      <div class="panel-container pt-0">
+
+        <!-- Upload Box Card (Premium SaaS) -->
+        <div class="import-card-premium">
+          <div class="import-card-header">
+            <div class="import-card-icon">
+              <i class="fa-solid fa-database"></i>
+            </div>
+            <div class="import-card-meta">
+              <h3>Atualização de Dados</h3>
+              <p>Carregue a planilha correspondente para atualizar as informações do sistema.</p>
+            </div>
+          </div>
+
+          <!-- 4 Cards / Inputs de Upload com Processamento Automático -->
+          <div class="upload-fields-row mb-1">
+            
+            <!-- Input 1: Contas a Pagar -->
+            <div class="upload-field-box">
+              <label class="form-label">Contas a Pagar (APB)</label>
+              <input type="file" #fileInputPagar (change)="onFileSelected('pagar', $event)" accept=".xlsx,.xls,.csv" class="d-none">
+              <div class="custom-upload-zone" (click)="!uploadStates().pagar.isProcessing && fileInputPagar.click()"
+                [class.has-file]="uploadStates().pagar.isSuccess"
+                [class.is-loading]="uploadStates().pagar.isProcessing"
+                [style.pointer-events]="uploadStates().pagar.isProcessing ? 'none' : 'auto'">
+                @if (uploadStates().pagar.isProcessing) {
+                  <div class="processing-file-container">
+                    <div class="processing-file-card">
+                      <div class="processing-spinner-box">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i>
+                      </div>
+                      <div class="processing-file-content">
+                        <span class="processing-file-title" title="{{ uploadStates().pagar.fileName }}">
+                          {{ uploadStates().pagar.fileName }}
+                        </span>
+                        <div class="processing-file-status">
+                          <span>{{ uploadStates().pagar.message }}</span>
+                          <span class="processing-pct">{{ uploadStates().pagar.progress }}%</span>
+                        </div>
+                        <div class="progress processing-progress-bar">
+                          <div class="progress-bar progress-bar-striped progress-bar-animated" [style.width]="uploadStates().pagar.progress + '%'"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                } @else if (uploadStates().pagar.isSuccess) {
+                  <div class="processed-file-container">
+                    <div class="processed-file-card">
+                      <div class="processed-file-icon-box">
+                        <i class="fa-solid fa-file-excel"></i>
+                        <span class="badge-status-check">
+                          <i class="fa-solid fa-check"></i>
+                        </span>
+                      </div>
+                      <div class="processed-file-content">
+                        <span class="processed-file-title" title="{{ uploadStates().pagar.fileName }}">
+                          {{ uploadStates().pagar.fileName }}
+                        </span>
+                        <div class="processed-file-badge">
+                          <span class="status-pulse-dot"></span>
+                          <span>Processado com sucesso</span>
+                        </div>
+                      </div>
+                      <button type="button" class="btn-replace-file" (click)="resetUpload('pagar', $event)" title="Importar novo arquivo">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        <span>Importar Novo</span>
+                      </button>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="idle-upload-container">
+                    <div class="idle-icon-box">
+                      <i class="fa-regular fa-file-excel"></i>
+                    </div>
+                    <div class="idle-text-content">
+                      <span class="idle-title">Carregar Contas a Pagar (APB)</span>
+                      <span class="idle-subtitle">Processamento automático ao selecionar</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Input 2: Contas a Receber -->
+            <div class="upload-field-box">
+              <label class="form-label">Contas a Receber (ACR)</label>
+              <input type="file" #fileInputReceber (change)="onFileSelected('receber', $event)" accept=".xlsx,.xls,.csv" class="d-none">
+              <div class="custom-upload-zone" (click)="!uploadStates().receber.isProcessing && fileInputReceber.click()"
+                [class.has-file]="uploadStates().receber.isSuccess"
+                [class.is-loading]="uploadStates().receber.isProcessing"
+                [style.pointer-events]="uploadStates().receber.isProcessing ? 'none' : 'auto'">
+                @if (uploadStates().receber.isProcessing) {
+                  <div class="processing-file-container">
+                    <div class="processing-file-card">
+                      <div class="processing-spinner-box">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i>
+                      </div>
+                      <div class="processing-file-content">
+                        <span class="processing-file-title" title="{{ uploadStates().receber.fileName }}">
+                          {{ uploadStates().receber.fileName }}
+                        </span>
+                        <div class="processing-file-status">
+                          <span>{{ uploadStates().receber.message }}</span>
+                          <span class="processing-pct">{{ uploadStates().receber.progress }}%</span>
+                        </div>
+                        <div class="progress processing-progress-bar">
+                          <div class="progress-bar progress-bar-striped progress-bar-animated" [style.width]="uploadStates().receber.progress + '%'"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                } @else if (uploadStates().receber.isSuccess) {
+                  <div class="processed-file-container">
+                    <div class="processed-file-card">
+                      <div class="processed-file-icon-box">
+                        <i class="fa-solid fa-file-excel"></i>
+                        <span class="badge-status-check">
+                          <i class="fa-solid fa-check"></i>
+                        </span>
+                      </div>
+                      <div class="processed-file-content">
+                        <span class="processed-file-title" title="{{ uploadStates().receber.fileName }}">
+                          {{ uploadStates().receber.fileName }}
+                        </span>
+                        <div class="processed-file-badge">
+                          <span class="status-pulse-dot"></span>
+                          <span>Processado com sucesso</span>
+                        </div>
+                      </div>
+                      <button type="button" class="btn-replace-file" (click)="resetUpload('receber', $event)" title="Importar novo arquivo">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        <span>Importar Novo</span>
+                      </button>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="idle-upload-container">
+                    <div class="idle-icon-box">
+                      <i class="fa-regular fa-file-excel"></i>
+                    </div>
+                    <div class="idle-text-content">
+                      <span class="idle-title">Carregar Contas a Receber (ACR)</span>
+                      <span class="idle-subtitle">Processamento automático ao selecionar</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Input 3: Titulos Liquidados -->
+            <div class="upload-field-box">
+              <label class="form-label">Titulos Liquidados</label>
+              <input type="file" #fileInputProvisao (change)="onFileSelected('provisao', $event)" accept=".xlsx,.xls,.csv" class="d-none">
+              <div class="custom-upload-zone" (click)="!uploadStates().provisao.isProcessing && fileInputProvisao.click()"
+                [class.has-file]="uploadStates().provisao.isSuccess"
+                [class.is-loading]="uploadStates().provisao.isProcessing"
+                [style.pointer-events]="uploadStates().provisao.isProcessing ? 'none' : 'auto'">
+                @if (uploadStates().provisao.isProcessing) {
+                  <div class="processing-file-container">
+                    <div class="processing-file-card">
+                      <div class="processing-spinner-box">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i>
+                      </div>
+                      <div class="processing-file-content">
+                        <span class="processing-file-title" title="{{ uploadStates().provisao.fileName }}">
+                          {{ uploadStates().provisao.fileName }}
+                        </span>
+                        <div class="processing-file-status">
+                          <span>{{ uploadStates().provisao.message }}</span>
+                          <span class="processing-pct">{{ uploadStates().provisao.progress }}%</span>
+                        </div>
+                        <div class="progress processing-progress-bar">
+                          <div class="progress-bar progress-bar-striped progress-bar-animated" [style.width]="uploadStates().provisao.progress + '%'"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                } @else if (uploadStates().provisao.isSuccess) {
+                  <div class="processed-file-container">
+                    <div class="processed-file-card">
+                      <div class="processed-file-icon-box">
+                        <i class="fa-solid fa-file-excel"></i>
+                        <span class="badge-status-check">
+                          <i class="fa-solid fa-check"></i>
+                        </span>
+                      </div>
+                      <div class="processed-file-content">
+                        <span class="processed-file-title" title="{{ uploadStates().provisao.fileName }}">
+                          {{ uploadStates().provisao.fileName }}
+                        </span>
+                        <div class="processed-file-badge">
+                          <span class="status-pulse-dot"></span>
+                          <span>Processado com sucesso</span>
+                        </div>
+                      </div>
+                      <button type="button" class="btn-replace-file" (click)="resetUpload('provisao', $event)" title="Importar novo arquivo">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        <span>Importar Novo</span>
+                      </button>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="idle-upload-container">
+                    <div class="idle-icon-box">
+                      <i class="fa-regular fa-file-excel"></i>
+                    </div>
+                    <div class="idle-text-content">
+                      <span class="idle-title">Carregar Titulos Liquidados</span>
+                      <span class="idle-subtitle">Processamento automático ao selecionar</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Input 4: Investimentos -->
+            <div class="upload-field-box">
+              <label class="form-label">Investimentos</label>
+              <input type="file" #fileInputInvestimento (change)="onFileSelected('investimento', $event)" accept=".xlsx,.xls,.csv" class="d-none">
+              <div class="custom-upload-zone" (click)="!uploadStates().investimento.isProcessing && fileInputInvestimento.click()"
+                [class.has-file]="uploadStates().investimento.isSuccess"
+                [class.is-loading]="uploadStates().investimento.isProcessing"
+                [style.pointer-events]="uploadStates().investimento.isProcessing ? 'none' : 'auto'">
+                @if (uploadStates().investimento.isProcessing) {
+                  <div class="processing-file-container">
+                    <div class="processing-file-card">
+                      <div class="processing-spinner-box">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i>
+                      </div>
+                      <div class="processing-file-content">
+                        <span class="processing-file-title" title="{{ uploadStates().investimento.fileName }}">
+                          {{ uploadStates().investimento.fileName }}
+                        </span>
+                        <div class="processing-file-status">
+                          <span>{{ uploadStates().investimento.message }}</span>
+                          <span class="processing-pct">{{ uploadStates().investimento.progress }}%</span>
+                        </div>
+                        <div class="progress processing-progress-bar">
+                          <div class="progress-bar progress-bar-striped progress-bar-animated" [style.width]="uploadStates().investimento.progress + '%'"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                } @else if (uploadStates().investimento.isSuccess) {
+                  <div class="processed-file-container">
+                    <div class="processed-file-card">
+                      <div class="processed-file-icon-box">
+                        <i class="fa-solid fa-file-excel"></i>
+                        <span class="badge-status-check">
+                          <i class="fa-solid fa-check"></i>
+                        </span>
+                      </div>
+                      <div class="processed-file-content">
+                        <span class="processed-file-title" title="{{ uploadStates().investimento.fileName }}">
+                          {{ uploadStates().investimento.fileName }}
+                        </span>
+                        <div class="processed-file-badge">
+                          <span class="status-pulse-dot"></span>
+                          <span>Processado com sucesso</span>
+                        </div>
+                      </div>
+                      <button type="button" class="btn-replace-file" (click)="resetUpload('investimento', $event)" title="Importar novo arquivo">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        <span>Importar Novo</span>
+                      </button>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="idle-upload-container">
+                    <div class="idle-icon-box">
+                      <i class="fa-regular fa-file-excel"></i>
+                    </div>
+                    <div class="idle-text-content">
+                      <span class="idle-title">Carregar Investimentos</span>
+                      <span class="idle-subtitle">Processamento automático ao selecionar</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Seção de Histórico de Atualizações -->
+        <div class="section-header d-flex justify-content-between align-items-center mb-3 mt-4">
+          <div>
+            <h3>Últimas Atualizações Realizadas</h3>
+            <p>Acompanhe os arquivos de atualização de dados processados recentemente.</p>
+          </div>
+          <div class="search-box" style="max-width: 300px; width: 100%;">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input
+              type="text"
+              class="search-input"
+              placeholder="Buscar atualização..."
+              [ngModel]="searchAtualizacao()"
+              (ngModelChange)="searchAtualizacao.set($event)"
+            />
+            @if (searchAtualizacao()) {
+              <button class="btn btn-sm btn-clear-search" (click)="searchAtualizacao.set('')">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Tabela SaaS de Histórico -->
+        <div class="table-card mb-4">
+          <div class="table-responsive">
+            <table class="saas-table">
+              <thead>
+                <tr>
+                  <th style="width: 18%;">Data/Hora</th>
+                  <th style="width: 48%;">Arquivo de Origem</th>
+                  <th style="width: 18%;">Tipo</th>
+                  <th style="width: 12%;">Usuário</th>
+                  <th style="width: 4%; text-align: center;">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (isLoadingHistorico()) {
+                  <tr>
+                    <td colspan="5" class="text-center py-4 text-muted">
+                      <i class="fa-solid fa-circle-notch fa-spin me-2 text-primary"></i>Carregando importações...
+                    </td>
+                  </tr>
+                } @else {
+                  @for (history of filteredAtualizacoes(); track history.id) {
+                    <tr>
+                      <td class="font-monospace small">{{ history.dataHora }}</td>
+                      <td>
+                        <div class="file-cell">
+                          <i class="fa-regular fa-file-excel text-success fs-5"></i>
+                          <span>{{ history.nomeArquivo }}</span>
+                        </div>
+                      </td>
+                      <td class="text-muted small">
+                        <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.72rem;">{{ history.tipo }}</span>
+                      </td>
+                      <td>
+                        <span class="text-muted small fw-medium text-nowrap">
+                          <i class="fa-regular fa-user me-1"></i>{{ history.autor || '-' }}
+                        </span>
+                      </td>
+                      <td class="text-center">
+                        <div class="actions-cell justify-content-center">
+                          <button
+                            class="action-btn delete-btn"
+                            title="Excluir"
+                            (click)="solicitarExclusaoAtualizacao(history)"
+                          >
+                            <i class="fa-solid fa-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="5" class="text-center py-4 text-muted">
+                        Nenhuma atualização encontrada.
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
-    </main>
+    }
+  </main>
 
   </div>
 </div>
+
+<!-- ============================================================== -->
+<!-- MODAL: HISTÓRICO DE PAGAMENTO DO CLIENTE                       -->
+<!-- ============================================================== -->
+<app-modal
+  [isOpen]="isHistoricoModalOpen()"
+  title="Histórico de Pagamentos e Score do Cliente"
+  size="lg"
+  (closed)="fecharHistoricoModal()"
+>
+  @if (clienteSelecionado(); as cliente) {
+    <div class="historico-modal-content">
+      
+      <!-- Cabeçalho com Score e Métricas -->
+      <div class="cliente-info-header p-3 mb-3 rounded-3 border">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h5 class="mb-1 fw-bold text-dark">{{ cliente.clienteNome }}</h5>
+            <span class="text-muted small">
+              <i class="fa-solid fa-hashtag me-1"></i>Código: {{ cliente.clienteCodigo }}
+            </span>
+          </div>
+
+          <div class="text-end">
+            <span class="score-badge-modal" [ngClass]="getScoreBadgeClass(cliente.score)">
+              <i class="fa-solid fa-award me-1"></i> Score {{ cliente.score }}%
+            </span>
+            <div class="small text-muted mt-1">{{ cliente.classificacao }}</div>
+          </div>
+        </div>
+
+        <!-- 4 Mini KPIs do Cliente no Topo -->
+        <div class="row g-2 text-center">
+          <div class="col-3">
+            <div class="mini-kpi-box success">
+              <span class="mini-kpi-label">Pagos em Dia</span>
+              <span class="mini-kpi-value text-success">{{ cliente.titulosEmDia }}</span>
+              <span class="mini-kpi-sub">{{ cliente.percentualPontualidade }}% pontual</span>
+            </div>
+          </div>
+
+          <div class="col-3">
+            <div class="mini-kpi-box warning">
+              <span class="mini-kpi-label">Pagos com Atraso</span>
+              <span class="mini-kpi-value text-warning">{{ cliente.titulosEmAtraso }}</span>
+              <span class="mini-kpi-sub">{{ 100 - cliente.percentualPontualidade }}% atrasados</span>
+            </div>
+          </div>
+
+          <div class="col-3">
+            <div class="mini-kpi-box info">
+              <span class="mini-kpi-label">Média de Atraso</span>
+              <span class="mini-kpi-value text-info">{{ cliente.mediaDiasAtraso }}d</span>
+              <span class="mini-kpi-sub">dias úteis</span>
+            </div>
+          </div>
+
+          <div class="col-3">
+            <div class="mini-kpi-box primary">
+              <span class="mini-kpi-label">Volume Liquidado</span>
+              <span class="mini-kpi-value text-primary">{{ formatarMoeda(cliente.valorTotalPago) }}</span>
+              <span class="mini-kpi-sub">últimos 12 meses</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabela SaaS de Histórico de Lançamentos -->
+      <h6 class="fw-semibold mb-2 text-dark">
+        <i class="fa-solid fa-receipt me-1 text-primary"></i> Últimos Títulos Liquidados
+      </h6>
+
+      <div class="table-responsive rounded border mb-3">
+        <table class="table table-hover align-middle mb-0 saas-table">
+          <thead>
+            <tr>
+              <th>Título / Doc</th>
+              <th>Vencimento</th>
+              <th>Data Pagamento</th>
+              <th>Atraso</th>
+              <th class="text-end">Valor</th>
+              <th class="text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (lanc of cliente.lancamentos; track lanc.titulo) {
+              <tr>
+                <td class="fw-medium">{{ lanc.titulo }}</td>
+                <td>{{ lanc.dataVencimento }}</td>
+                <td>{{ lanc.dataPagamento }}</td>
+                <td>
+                  @if (lanc.diasAtraso === 0) {
+                    <span class="badge bg-success-subtle text-success rounded-pill fw-medium">Em dia</span>
+                  } @else {
+                    <span class="badge bg-warning-subtle text-warning rounded-pill fw-medium">+{{ lanc.diasAtraso }} dias</span>
+                  }
+                </td>
+                <td class="text-end tabular-nums fw-medium">{{ formatarMoeda(lanc.valor) }}</td>
+                <td class="text-center">
+                  <span class="badge" [class.bg-success]="lanc.status === 'EM_DIA'" [class.bg-warning]="lanc.status === 'ATRASADO'">
+                    {{ lanc.status === 'EM_DIA' ? 'Liquidado no Prazo' : 'Liquidado com Atraso' }}
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="d-flex justify-content-end">
+        <app-button variant="secondary" (clicked)="fecharHistoricoModal()">Fechar</app-button>
+      </div>
+
+    </div>
+  }
+</app-modal>
+
+<!-- ============================================================== -->
+<!-- MODAL: DETALHES DE CONTA A PAGAR                               -->
+<!-- ============================================================== -->
+<app-modal
+  [isOpen]="isDetalhePagarModalOpen()"
+  title="Detalhes da Conta a Pagar"
+  size="md"
+  (closed)="fecharDetalhesPagarModal()"
+>
+  @if (pagarSelecionado(); as item) {
+    <div class="detalhes-pagar-content">
+      <div class="p-3 mb-3 bg-light rounded border">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="text-muted small">Valor Previsto</span>
+          <span class="fs-4 fw-bold text-danger tabular-nums">{{ formatarMoeda(item.valor) }}</span>
+        </div>
+        <div class="fw-semibold fs-5 mb-1">{{ item.favorecido }}</div>
+        <div class="text-muted small">{{ item.descricao }}</div>
+      </div>
+
+      <div class="row g-2 mb-3 small">
+        <div class="col-6">
+          <div class="p-2 border rounded">
+            <span class="text-muted d-block">Categoria</span>
+            <strong>{{ item.categoria }}</strong>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="p-2 border rounded">
+            <span class="text-muted d-block">Data de Vencimento</span>
+            <strong>{{ item.dataVencimento }}</strong>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="p-2 border rounded">
+            <span class="text-muted d-block">Banco / Conta</span>
+            <strong>{{ item.banco === 'BANCO_DO_BRASIL' ? 'Banco do Brasil' : (item.banco === 'ITAU' ? 'Itaú' : 'Provisão Contábil') }}</strong>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="p-2 border rounded">
+            <span class="text-muted d-block">Documento</span>
+            <strong>{{ item.numeroDocumento || 'S/N' }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end gap-2">
+        <app-button variant="secondary" (clicked)="fecharDetalhesPagarModal()">Fechar</app-button>
+        <app-button variant="primary" (clicked)="fecharDetalhesPagarModal()">Confirmar Programação</app-button>
+      </div>
+    </div>
+  }
+</app-modal>
+
+<!-- ============================================================== -->
+<!-- MODAL: SIMULAR RECEBIMENTO                                     -->
+<!-- ============================================================== -->
+<app-modal
+  [isOpen]="isAcaoReceberModalOpen()"
+  title="Simular Previsão de Recebimento"
+  size="md"
+  (closed)="fecharAcaoReceberModal()"
+>
+  @if (receberSelecionado(); as item) {
+    <div class="simulacao-receber-content">
+      <div class="p-3 mb-3 bg-light rounded border">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="text-muted small">Valor do Título</span>
+          <span class="fs-4 fw-bold text-success tabular-nums">{{ formatarMoeda(item.valor) }}</span>
+        </div>
+        <div class="fw-semibold fs-6">{{ item.clienteNome }}</div>
+        <div class="text-muted small">{{ item.documento }} • Venc. {{ item.dataVencimento }}</div>
+      </div>
+
+      <div class="p-3 mb-3 border rounded-3 score-box-bg">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="fw-medium">Score do Cliente:</span>
+          <span class="score-badge" [ngClass]="getScoreBadgeClass(item.score)">Score {{ item.score }}%</span>
+        </div>
+        <p class="text-muted small mb-0">
+          Com base no comportamento de compras e pagamentos, a probabilidade estimada de recebimento na data prevista é de <strong>{{ item.score }}%</strong>.
+        </p>
+      </div>
+
+      <div class="d-flex justify-content-end gap-2">
+        <app-button variant="secondary" (clicked)="fecharAcaoReceberModal()">Fechar</app-button>
+        <app-button variant="success" (clicked)="fecharAcaoReceberModal()">Confirmar Cenário</app-button>
+      </div>
+    </div>
+  }
+</app-modal>
+
+<!-- Modal de Confirmação de Exclusão -->
+<app-confirm-modal
+  [isOpen]="isConfirmDeleteOpen()"
+  title="Confirmar Exclusão"
+  message="Tem certeza que deseja excluir este registro de atualização? Esta ação removerá o histórico da lista."
+  confirmText="Excluir"
+  cancelText="Cancelar"
+  variant="danger"
+  (confirmed)="confirmarExclusaoAtualizacao()"
+  (canceled)="fecharConfirmDelete()"
+></app-confirm-modal>
+
+

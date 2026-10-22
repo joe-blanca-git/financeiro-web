@@ -64,10 +64,60 @@
   // Bootstrap 5 Dark Variables Sync
   --bs-body-bg: var(--color-bg);
   --bs-body-color: var(--color-text-secondary);
+  --bs-body-color-rgb: 212, 212, 216;
   --bs-border-color: var(--color-border);
   --bs-border-color-translucent: var(--color-border-light);
   --bs-card-bg: var(--color-surface);
   --bs-card-border-color: var(--color-border);
   --bs-tertiary-bg: var(--color-surface-hover);
   --bs-secondary-bg: var(--color-surface);
+  --bs-heading-color: var(--color-text-primary);
+  --bs-link-color: var(--color-primary);
+  --bs-link-hover-color: var(--color-primary-hover);
+  --bs-light: var(--color-surface-hover);
+  --bs-light-rgb: 42, 42, 42;
+  --bs-dark: var(--color-text-primary);
+  --bs-dark-rgb: 244, 244, 245;
+
+  // Modals & Popups
+  --bs-modal-bg: var(--color-surface);
+  --bs-modal-color: var(--color-text-secondary);
+  --bs-modal-border-color: var(--color-border);
+  --bs-modal-header-border-color: var(--color-border-light);
+  --bs-modal-footer-border-color: var(--color-border-light);
+
+  // Dropdowns
+  --bs-dropdown-bg: var(--color-surface);
+  --bs-dropdown-color: var(--color-text-secondary);
+  --bs-dropdown-border-color: var(--color-border);
+  --bs-dropdown-link-color: var(--color-text-secondary);
+  --bs-dropdown-link-hover-color: var(--color-text-primary);
+  --bs-dropdown-link-hover-bg: var(--color-surface-hover);
+
+  // Tables
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--color-text-secondary);
+  --bs-table-border-color: var(--color-border-light);
+  --bs-table-hover-bg: var(--color-surface-hover);
+  --bs-table-hover-color: var(--color-text-primary);
+
+  // Subtle Badges (Bootstrap 5.3)
+  --bs-primary-bg-subtle: rgba(59, 130, 246, 0.18);
+  --bs-primary-text-emphasis: #93c5fd;
+  --bs-primary-border-subtle: rgba(59, 130, 246, 0.3);
+  --bs-success-bg-subtle: rgba(16, 185, 129, 0.18);
+  --bs-success-text-emphasis: #34d399;
+  --bs-success-border-subtle: rgba(16, 185, 129, 0.3);
+  --bs-warning-bg-subtle: rgba(245, 158, 11, 0.18);
+  --bs-warning-text-emphasis: #fbbf24;
+  --bs-warning-border-subtle: rgba(245, 158, 11, 0.3);
+  --bs-danger-bg-subtle: rgba(239, 68, 68, 0.18);
+  --bs-danger-text-emphasis: #f87171;
+  --bs-danger-border-subtle: rgba(239, 68, 68, 0.3);
+  --bs-info-bg-subtle: rgba(6, 182, 212, 0.18);
+  --bs-info-text-emphasis: #67e8f9;
+  --bs-info-border-subtle: rgba(6, 182, 212, 0.3);
+  --bs-secondary-bg-subtle: rgba(142, 142, 147, 0.18);
+  --bs-secondary-text-emphasis: #d4d4d8;
+  --bs-secondary-border-subtle: rgba(142, 142, 147, 0.3);
 }

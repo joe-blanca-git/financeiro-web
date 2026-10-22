@@ -307,6 +307,34 @@ export class InadimplenciaComponent implements OnInit {
   qtdTitulosVencidos = 0;
   qtdPagosForaPrazo = 0;
   gridPagosForaPrazo: any[] = [];
+  pagePagosForaPrazo = 1;
+  searchPagosForaPrazo = '';
+  pageSizePagosForaPrazo = 10;
+
+  get paginatedPagosForaPrazo() {
+    const s = this.searchPagosForaPrazo.toLowerCase().trim();
+    let filtered = this.gridPagosForaPrazo;
+    if (s) {
+      filtered = filtered.filter(t =>
+        (t.cliente && t.cliente.toLowerCase().includes(s)) ||
+        (t.titulo && String(t.titulo).toLowerCase().includes(s))
+      );
+    }
+    const start = (this.pagePagosForaPrazo - 1) * this.pageSizePagosForaPrazo;
+    return filtered.slice(start, start + this.pageSizePagosForaPrazo);
+  }
+
+  get totalPagesPagosForaPrazo() {
+    const s = this.searchPagosForaPrazo.toLowerCase().trim();
+    let filtered = this.gridPagosForaPrazo;
+    if (s) {
+      filtered = filtered.filter(t =>
+        (t.cliente && t.cliente.toLowerCase().includes(s)) ||
+        (t.titulo && String(t.titulo).toLowerCase().includes(s))
+      );
+    }
+    return Math.ceil(filtered.length / this.pageSizePagosForaPrazo) || 1;
+  }
   qtdTitulosProtestados = 0;
   evolucaoVencido = 0;
   evolucaoProtestado = 0;
@@ -866,6 +894,7 @@ export class InadimplenciaComponent implements OnInit {
         this.qtdTitulosVencidos = (res.gridFinanceiro || []).length;
         this.qtdPagosForaPrazo = res.evolucaoPagosForaPrazo ? res.evolucaoPagosForaPrazo.total : 0;
         this.gridPagosForaPrazo = res.gridPagosForaPrazo || [];
+        this.pagePagosForaPrazo = 1;
         this.qtdTitulosProtestados = (res.gridFinanceiro || []).filter((x: any) => x.status === 'PROTESTADO' || x.status === 'CARTÓRIO').length;
 
         this.rankingClientes = (res.rankingClientesAtraso || []).map((x: any) => ({

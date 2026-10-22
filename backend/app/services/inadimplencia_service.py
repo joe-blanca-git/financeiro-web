@@ -1729,7 +1729,7 @@ class InadimplenciaService:
         }
 
     def get_dashboard_visao_geral(self) -> dict:
-        from sqlalchemy import func, extract, desc
+        from sqlalchemy import func, extract, desc, or_
         import datetime
         from dateutil.relativedelta import relativedelta
 
@@ -2087,7 +2087,40 @@ class InadimplenciaService:
                         
         preencher_bins(status_list=['SEM DATA DE ENTREGA'], bin_array=valores_sem_entrega, check_vencimento=True)
         preencher_bins(status_list=['DEVOLUÇÃO', 'DEVOLUCAO'], bin_array=valores_devolucao, check_vencimento=True)
-        preencher_bins(status_list=['PROTESTADO', 'CARTÓRIO'], bin_array=meses_valores_protesto, check_vencimento=True)
+
+        # Preenchimento robusto de Protestos no Semestre (busca por status na view e histórico/vencimento)
+        protestados_db = self.db.query(
+            VwNfPendenciaFase.idnfpendencias,
+            VwNfPendenciaFase.createdAt,
+            VwNfPendenciaFase.dtVencimento
+        ).filter(VwNfPendenciaFase.status.in_(['PROTESTADO', 'CARTÓRIO'])).all()
+
+        ids_protestados = [p.idnfpendencias for p in protestados_db]
+        data_protesto_map = {}
+        if ids_protestados:
+            hist_protestos = self.db.query(
+                HistoricoPendencia.idNfPendencias,
+                func.max(HistoricoPendencia.createdAt).label('max_date')
+            ).filter(
+                HistoricoPendencia.idNfPendencias.in_(ids_protestados),
+                or_(
+                    HistoricoPendencia.status.in_(['PROTESTADO', 'CARTÓRIO']),
+                    HistoricoPendencia.observacao.like('%PROTESTADO%'),
+                    HistoricoPendencia.observacao.like('%CARTÓRIO%'),
+                    HistoricoPendencia.observacao.like('%CARTORIO%'),
+                )
+            ).group_by(HistoricoPendencia.idNfPendencias).all()
+            for h in hist_protestos:
+                if h.max_date:
+                    data_protesto_map[h.idNfPendencias] = h.max_date
+
+        for p in protestados_db:
+            dt_ref = data_protesto_map.get(p.idnfpendencias) or p.createdAt or p.dtVencimento
+            if dt_ref:
+                key = (dt_ref.year, dt_ref.month)
+                if key in month_to_index:
+                    meses_valores_protesto[month_to_index[key]] += 1
+
         preencher_bins(status_list=['ATRASADO'], bin_array=meses_valores_atraso, check_vencimento=True)
         preencher_bins(status_list=['ACORDO'], bin_array=valores_acordos, check_vencimento=False)
         preencher_bins(fase='FISCAL', bin_array=valores_fiscal, check_vencimento=False)

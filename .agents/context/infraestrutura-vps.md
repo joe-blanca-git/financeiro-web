@@ -166,6 +166,20 @@ Todas as rotas do teste ficam sob `/teste/` (ex.: `/teste/login`, `/teste/inadim
 - Próxima execução: `systemctl list-timers clone-banco-dev.timer`
 - Logs: `docker logs financeiro-web-dev-backend-dev-1`, `tail /var/log/clone-banco-dev.log`
 
+### Troubleshooting (Ambiente de Teste)
+- **Erro 500 no login (`Access denied for user 'app_dev' (using password: NO)`)**:
+  - **Causa**: O container `backend-dev` foi criado ou recriado fora da pasta `/root/projects/financeiro-web-dev` (ex.: a partir de `/root`). O Docker Compose lê o `.env` do diretório atual de execução (`$PWD`), não achando `MYSQL_DEV_PASSWORD` e injetando senha vazia.
+  - **Diagnóstico**: `docker exec financeiro-web-dev-backend-dev-1 env | grep DATABASE` (observar se `DATABASE_PASSWORD` está vazio).
+  - **Solução**: Entrar obrigatoriamente na pasta do teste e forçar a recriação do container:
+    ```bash
+    cd /root/projects/financeiro-web-dev
+    docker compose -f docker-compose.dev.yml up -d --force-recreate backend-dev
+    ```
+  - **Se o erro mudar para `(using password: YES)`**: A senha configurada no MySQL difere do `.env`. Sincronize o usuário no banco:
+    ```bash
+    docker exec -i financeiro-web-db-1 sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot' -e "ALTER USER 'app_dev'@'%' IDENTIFIED BY 'SENHA_DO_ENV'; FLUSH PRIVILEGES;"
+    ```
+
 ### Validação feita na implantação (06/10/2026)
 - `stamaria.cloud/` e `stamaria.cloud/teste/` com `<base href>` corretos; deep links (`/teste/inadimplencia`), assets e `maps/brazil.json` respondendo 200.
 - Login inválido em `/api/v1` respondido pelo backend de produção e em `/teste/api/v1` pelo `backend-dev` (cada um consultando o próprio banco).

@@ -15,7 +15,7 @@ class NfPendencia(Base):
     nrPedidoCliente = Column(Integer, nullable=True)                                  # Coluna F - Nr Pedcli
     tipoPedido = Column(String(45), nullable=True)                                    # Coluna G - Tipo Pedido (PV, ER, E1, PX)
     idCliente = Column(Integer, ForeignKey("clientes.idclientes"), nullable=True)
-    idClienteMatriz = Column(Integer, ForeignKey("matrizcliente.idmatrizCliente"), nullable=True)
+    idClienteMatriz = Column(Integer, nullable=True)
     portador = Column(Integer, nullable=True)                                         # Coluna L - Port
     carteira = Column(String(45), nullable=True)                                      # Coluna M - Cart (DEV, CAR, DES, SIM, VIN)
     dtEmissao = Column(Date, nullable=True)                                           # Coluna N - Emissão
@@ -34,7 +34,6 @@ class NfPendencia(Base):
 
     unidade_rel = relationship("Unidade")
     cliente = relationship("Cliente")
-    matriz_cliente = relationship("MatrizCliente")
     importacao = relationship("Importacao")
 
 class VwNfPendenciaFase(Base):

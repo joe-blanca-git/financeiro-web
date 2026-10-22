@@ -357,10 +357,6 @@ class InadimplenciaService:
 
             codigo_matriz = _to_int(linha.get("codigoMatriz"))
             id_matriz = None
-            if codigo_matriz is not None:
-                id_matriz, criado_matriz = self._obter_ou_criar_matriz(codigo_matriz)
-                if criado_matriz:
-                    matrizes_criadas += 1
 
             pendencia_existente = self._obter_pendencia_existente(
                 id_unidade=id_unidade,
@@ -473,9 +469,6 @@ class InadimplenciaService:
                 if id_cliente is not None and id_cliente != pendencia_existente.idCliente:
                     pendencia_existente.idCliente = id_cliente
 
-                if id_matriz is not None and id_matriz != pendencia_existente.idClienteMatriz:
-                    pendencia_existente.idClienteMatriz = id_matriz
-
                 # Se a pendência estava marcada como encerrada por ausência anterior mas voltou na planilha
                 if not is_prorrogacao and pendencia_existente.encerrado == 'S':
                     pendencia_existente.encerrado = 'N'
@@ -557,7 +550,7 @@ class InadimplenciaService:
                     nrPedidoCliente=_to_int(linha.get("nrPedidoCliente")),
                     tipoPedido=tipo_pedido,
                     idCliente=id_cliente,
-                    idClienteMatriz=id_matriz,
+                    idClienteMatriz=None,
                     portador=_to_int(linha.get("portador")),
                     carteira=carteira,
                     dtEmissao=_excel_serial_to_date(linha.get("dtEmissao")),
@@ -1324,20 +1317,9 @@ class InadimplenciaService:
         self._cache_clientes[codigo] = cliente.idclientes
         return cliente.idclientes, True
 
-    def _obter_ou_criar_matriz(self, codigo: int) -> Tuple[int, bool]:
-        if codigo in self._cache_matrizes:
-            return self._cache_matrizes[codigo], False
-
-        matriz = self.db.query(MatrizCliente).filter(MatrizCliente.codigo == codigo).first()
-        if matriz:
-            self._cache_matrizes[codigo] = matriz.idmatrizCliente
-            return matriz.idmatrizCliente, False
-
-        matriz = MatrizCliente(codigo=codigo)
-        self.db.add(matriz)
-        self.db.flush()
-        self._cache_matrizes[codigo] = matriz.idmatrizCliente
-        return matriz.idmatrizCliente, True
+    def _obter_ou_criar_matriz(self, codigo: int) -> Tuple[Optional[int], bool]:
+        """Desativado: não cria e não vincula matrizcliente a pendências."""
+        return None, False
 
     def _buscar_unidade(self, codigo_estabelecimento: Optional[int]) -> Optional[int]:
         """Apenas consulta - não cadastra unidade automaticamente (fora do escopo pedido)."""

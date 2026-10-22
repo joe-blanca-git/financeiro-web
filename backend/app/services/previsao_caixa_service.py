@@ -5,13 +5,16 @@ from decimal import Decimal
 from typing import Optional, List, Dict, Any
 
 from fastapi import UploadFile, HTTPException
+from sqlalchemy import func, cast, Integer
 from sqlalchemy.orm import Session
 import openpyxl
 
 from app.models.importacao import Importacao
-from app.models.previsao_apb import PrevisaoApb
+from app.models.previsao_apb import PrevisaoApb, VwPrevisaoApb
 from app.models.previsao_acr import PrevisaoAcr
 from app.models.previsao_titulos_liquidados import PrevisaoTitulosLiquidados
+from app.models.cliente import Cliente
+from app.models.matriz_cliente import MatrizCliente
 from app.models.user import User
 
 logger = logging.getLogger("santamaria")
@@ -637,3 +640,150 @@ class PrevisaoCaixaService:
             "totalRegistros": total_registros,
             "totalValor": float(total_valor_somado)
         }
+
+    def get_visao_geral(self, data_ref: Optional[date] = None) -> Dict[str, Any]:
+        """
+        Retorna os dados consolidados do painel Visão Geral de Previsão de Caixa.
+        Primeira parte: Contas a Pagar (APB) classificadas em Provisão, Banco do Brasil e Itaú.
+        Sempre traz a posição da data atual (ou mais recente disponível se o dia ainda não tiver registros).
+        """
+        hoje = date.today()
+        if not data_ref:
+            tem_hoje = self.db.query(VwPrevisaoApb.id).filter(VwPrevisaoApb.data == hoje).first()
+            data_consulta = hoje if tem_hoje else (self.db.query(func.max(VwPrevisaoApb.data)).scalar() or hoje)
+        else:
+            data_consulta = data_ref
+
+        titulos_apb = (
+            self.db.query(
+                VwPrevisaoApb,
+                Cliente.codigo.label("cliente_codigo"),
+                Cliente.nome.label("cliente_nome"),
+                MatrizCliente.idmatrizCliente.label("id_matriz"),
+                MatrizCliente.codigo.label("codigo_matriz"),
+                MatrizCliente.nome.label("nome_matriz")
+            )
+            .outerjoin(Cliente, Cliente.codigo == cast(VwPrevisaoApb.numero_fornecedor, Integer))
+            .outerjoin(MatrizCliente, MatrizCliente.idmatrizCliente == Cliente.idMatriz)
+            .filter(VwPrevisaoApb.data == data_consulta)
+            .order_by(VwPrevisaoApb.valor.desc())
+            .all()
+        )
+
+        contas_bb = []
+        contas_itau = []
+        contas_provisao = []
+
+        total_provisao = 0.0
+        total_bb = 0.0
+        total_itau = 0.0
+
+        grupos_matriz: Dict[tuple, Dict[str, Any]] = {}
+
+        for row in titulos_apb:
+            t, c_cod, c_nome, m_id, m_cod, m_nome = row
+            vlr = float(t.valor or 0.0)
+            fav = (t.nome_emitente or t.nome_abrev or "Não informado").strip()
+            cat = (t.cod_tp_fluxo or t.esp or "").strip()
+            desc = (t.trans or t.modulo or "Despesa").strip()
+            doc = f"{t.n_titulo or ''}/{t.parcela or ''}".strip('/')
+            dt_venc = t.data.strftime("%d/%m/%Y") if t.data else ""
+
+            id_matriz = m_id
+            cod_matriz = m_cod
+            nome_matriz = m_nome or fav
+            if not cod_matriz:
+                cod_matriz = t.nome_abrev or fav
+
+            cli_cod = c_cod or (int(t.numero_fornecedor) if (t.numero_fornecedor and t.numero_fornecedor.isdigit()) else None)
+            cli_nome = c_nome or fav
+
+            item_dto = {
+                "id": t.id,
+                "banco": t.banco_destino or "ITAU",
+                "favorecido": fav,
+                "categoria": cat,
+                "descricao": desc,
+                "valor": vlr,
+                "dataVencimento": dt_venc,
+                "tipo": t.tipo_conta or "REAL",
+                "status": "PROGRAMADO",
+                "numeroDocumento": doc,
+                "idMatriz": id_matriz,
+                "codigoMatriz": cod_matriz,
+                "nomeMatriz": nome_matriz,
+                "clienteCodigo": cli_cod,
+                "clienteNome": cli_nome
+            }
+
+            if t.banco_destino == 'PROVISAO' or t.tipo_conta == 'PROVISAO':
+                contas_provisao.append(item_dto)
+                total_provisao += vlr
+            elif t.banco_destino == 'BANCO_DO_BRASIL':
+                contas_bb.append(item_dto)
+                total_bb += vlr
+            else:
+                contas_itau.append(item_dto)
+                total_itau += vlr
+
+            chave_matriz = (id_matriz, cod_matriz, nome_matriz, t.banco_destino or "ITAU", t.tipo_conta or "REAL")
+            if chave_matriz not in grupos_matriz:
+                grupos_matriz[chave_matriz] = {
+                    "idMatriz": id_matriz,
+                    "codigoMatriz": cod_matriz,
+                    "nomeMatriz": nome_matriz,
+                    "banco": t.banco_destino or "ITAU",
+                    "tipo": t.tipo_conta or "REAL",
+                    "valorTotal": 0.0,
+                    "qtdTitulos": 0,
+                    "titulos": []
+                }
+            grupos_matriz[chave_matriz]["valorTotal"] = round(grupos_matriz[chave_matriz]["valorTotal"] + vlr, 2)
+            grupos_matriz[chave_matriz]["qtdTitulos"] += 1
+            grupos_matriz[chave_matriz]["titulos"].append({
+                "id": t.id,
+                "numeroDocumento": doc,
+                "valor": vlr,
+                "clienteCodigo": cli_cod,
+                "clienteNome": cli_nome,
+                "dataVencimento": dt_venc,
+                "banco": t.banco_destino or "ITAU",
+                "categoria": cat,
+                "descricao": desc
+            })
+
+        matrizes_agrupadas = sorted(grupos_matriz.values(), key=lambda x: x["valorTotal"], reverse=True)
+
+        total_pagar_real = total_bb + total_itau
+        qtd_pagar_real = len(contas_bb) + len(contas_itau)
+        qtd_provisoes = len(contas_provisao)
+
+        saldo_previsibilidade = 0.0 - total_pagar_real
+        saldo_real_nominal = 0.0 - total_pagar_real
+
+        return {
+            "data_referencia": data_consulta.strftime("%Y-%m-%d"),
+            "data_formatada": data_consulta.strftime("%d/%m/%Y"),
+            "is_hoje": data_consulta == hoje,
+            "total_provisao": round(total_provisao, 2),
+            "qtd_provisoes": qtd_provisoes,
+            "total_pagar": round(total_pagar_real, 2),
+            "qtd_pagar_real": qtd_pagar_real,
+            "total_bb": round(total_bb, 2),
+            "total_itau": round(total_itau, 2),
+            "contas_bb": contas_bb,
+            "contas_itau": contas_itau,
+            "contas_provisao": contas_provisao,
+            "matrizes_agrupadas": matrizes_agrupadas,
+            "total_receber": 0.0,
+            "qtd_receber": 0,
+            "total_receber_carteira": 0.0,
+            "total_receber_boleto": 0.0,
+            "receber_menor_igual_80": 0.0,
+            "receber_maior_80": 0.0,
+            "saldo_previsibilidade": round(saldo_previsibilidade, 2),
+            "saldo_real_nominal": round(saldo_real_nominal, 2),
+            "valor_investido_resgatavel": 0.0,
+            "contas_receber": []
+        }
+

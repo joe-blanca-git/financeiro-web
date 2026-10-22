@@ -7,6 +7,7 @@ import { ConfirmModalComponent } from '../../shared/components/confirm-modal/con
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { PrevisaoCaixaService } from '../../core/services/previsao-caixa.service';
 import { ToastService } from '../../core/services/toast.service';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 import {
   ContaPagarItem,
   ContaReceberItem,
@@ -18,7 +19,7 @@ import {
 @Component({
   selector: 'app-previsao-caixa',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonComponent, ModalComponent, ConfirmModalComponent, BadgeComponent],
+  imports: [CommonModule, FormsModule, ButtonComponent, ModalComponent, ConfirmModalComponent, BadgeComponent, SkeletonComponent],
   templateUrl: './previsao-caixa.component.html',
   styleUrls: ['./previsao-caixa.component.scss']
 })
@@ -31,7 +32,7 @@ export class PrevisaoCaixaComponent implements OnInit {
   activeNav = signal<'visao-geral'>('visao-geral');
   dataHoje = new Date().toLocaleDateString('pt-BR');
   dataReferenciaBackend = signal<string>('');
-  isLoadingVisaoGeral = signal<boolean>(false);
+  isLoadingVisaoGeral = signal<boolean>(true);
 
   // Termos de busca
   pesquisaPagar = signal<string>('');

@@ -38,7 +38,7 @@ export class InadimplenciaComponent implements OnInit {
   activeTab = 'dashboards';
   dashboardTab = signal<'visao-geral' | 'financeiro' | 'logistica' | 'comercial' | 'fiscal' | 'pendencias-acr'>('visao-geral');
   financeiroTab = signal<'gerencial' | 'gerente'>('gerencial');
-  pendenciasAcrTab = signal<'atrasados' | 'protestados' | 'sem_data_entrega' | 'devolucao' | 'acordo' | 'an' | 'ad' | 'perdas' | 'rj' | 'pr' | 'variados'>('atrasados');
+  pendenciasAcrTab = signal<'atrasados' | 'protestados' | 'sem_data_entrega' | 'devolucao' | 'acordo' | 'an' | 'ad' | 'perdas' | 'rj' | 'pr' | 'martins' | 'variados'>('atrasados');
 
   // Modal Tratativas
   isTratativasModalOpen = false;
@@ -707,6 +707,21 @@ export class InadimplenciaComponent implements OnInit {
     return Math.ceil(filtered.length / this.pageSize) || 1;
   }
 
+  // Martins (Comissão)
+  gridMartins: any[] = [];
+  searchAcrMartins = '';
+  pageAcrMartins = 1;
+  get paginatedAcrMartins() {
+    const s = this.searchAcrMartins.toLowerCase();
+    const filtered = s ? this.gridMartins.filter(a => (a.titulo?.toLowerCase().includes(s)) || (a.cliente?.toLowerCase().includes(s))) : this.gridMartins;
+    return filtered.slice((this.pageAcrMartins - 1) * this.pageSize, this.pageAcrMartins * this.pageSize);
+  }
+  get totalPagesAcrMartins() {
+    const s = this.searchAcrMartins.toLowerCase();
+    const filtered = s ? this.gridMartins.filter(a => (a.titulo?.toLowerCase().includes(s)) || (a.cliente?.toLowerCase().includes(s))) : this.gridMartins;
+    return Math.ceil(filtered.length / this.pageSize) || 1;
+  }
+
   // Variados
   gridVariados: any[] = [];
   searchAcrVariados = '';
@@ -960,14 +975,17 @@ export class InadimplenciaComponent implements OnInit {
 
         this.aplicarFiltroCarteira();
 
-        // Pendências ACR (AN, AD, PERDAS, RJ, PR)
+        // Pendências ACR (AN, AD, PERDAS, RJ, PR, MARTINS)
         const acrPendencias = (res.gridPendencias || []).map((x: any) => {
           const statusColorMap: Record<string, string> = {
             'AN': 'danger',
             'AD': 'warning',
             'PERDAS': 'danger',
             'RJ': 'primary',
-            'PR': 'info'
+            'PR': 'info',
+            'COMISSAO': 'info',
+            'COMISSÃO': 'info',
+            'MARTINS': 'info'
           };
           return {
             ...x,
@@ -975,13 +993,37 @@ export class InadimplenciaComponent implements OnInit {
           };
         });
         
+        // Popula as grids das abas ACR
+        this.gridSemEntrega = res.gridSemEntrega || [];
+        this.gridDevolucao = res.gridDevolucao || [];
+        this.gridAcordos = res.gridAcordos || [];
         this.gridAN = acrPendencias.filter((t: any) => t.status === 'AN');
         this.gridAD = acrPendencias.filter((t: any) => t.status === 'AD');
         this.gridPerdas = acrPendencias.filter((t: any) => t.status === 'PERDAS');
         this.gridRJ = acrPendencias.filter((t: any) => t.status === 'RJ');
         this.gridPR = acrPendencias.filter((t: any) => t.status === 'PR');
+        
+        // Martins (Comissão)
+        const comissaoCandidatos = [
+          ...acrPendencias,
+          ...(res.gridFiscal || []),
+          ...(res.gridVencidosGeral || [])
+        ];
+        const martinsMap = new Map<number, any>();
+        comissaoCandidatos.forEach((t: any) => {
+          const st = (t.status || '').toUpperCase().trim();
+          if (st === 'COMISSAO' || st === 'COMISSÃO' || st === 'MARTINS') {
+            if (!martinsMap.has(t.id)) {
+              martinsMap.set(t.id, {
+                ...t,
+                statusColor: 'info'
+              });
+            }
+          }
+        });
+        this.gridMartins = Array.from(martinsMap.values());
 
-        // Preencher Variados com todos os vencidos gerais que não estão em nenhuma das listas anteriores
+        // Preencher Variados com títulos que NÃO entraram no critério de nenhuma outra aba
         const todosVencidos = res.gridVencidosGeral || [];
         const idsUsados = new Set<number>();
         
@@ -996,18 +1038,43 @@ export class InadimplenciaComponent implements OnInit {
         this.gridPerdas.forEach(t => idsUsados.add(t.id));
         this.gridRJ.forEach(t => idsUsados.add(t.id));
         this.gridPR.forEach(t => idsUsados.add(t.id));
+        this.gridMartins.forEach(t => idsUsados.add(t.id));
 
-        this.gridVariados = todosVencidos.filter((t: any) => !idsUsados.has(t.id) && t.status !== 'OK').map((x: any) => {
-          const statusColorMap: Record<string, string> = {
-            'AN': 'danger', 'AD': 'warning', 'PERDAS': 'danger', 'RJ': 'primary', 'PR': 'info',
-            'ATRASADO': 'warning', 'PROTESTADO': 'danger', 'ACORDO': 'primary',
-            'DEVOLUCAO': 'warning', 'SEM DATA DE ENTREGA': 'warning'
-          };
-          return {
-            ...x,
-            statusColor: statusColorMap[x.status] || 'secondary'
-          };
-        });
+        // Status que possuem abas próprias ou estão quitados e NUNCA devem aparecer em Variados
+        const statusExcluidosVariados = new Set([
+          'ATRASADO',
+          'PROTESTADO',
+          'CARTÓRIO',
+          'SEM DATA DE ENTREGA',
+          'DEVOLUCAO',
+          'ACORDO',
+          'AN',
+          'AD',
+          'PERDAS',
+          'RJ',
+          'PR',
+          'COMISSAO',
+          'COMISSÃO',
+          'MARTINS',
+          'OK'
+        ]);
+
+        this.gridVariados = todosVencidos
+          .filter((t: any) => !idsUsados.has(t.id) && !statusExcluidosVariados.has((t.status || '').toUpperCase().trim()))
+          .map((x: any) => {
+            const statusColorMap: Record<string, string> = {
+              'ANALISAR': 'secondary',
+              'COMISSAO': 'info',
+              'DES': 'warning',
+              'EXPORTACAO': 'primary',
+              'MARTINS': 'info',
+              'MERCADINHO': 'info'
+            };
+            return {
+              ...x,
+              statusColor: statusColorMap[x.status] || 'secondary'
+            };
+          });
 
 
         const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;

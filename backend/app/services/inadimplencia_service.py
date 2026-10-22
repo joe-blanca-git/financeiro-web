@@ -2011,7 +2011,12 @@ class InadimplenciaService:
                 VwNfPendenciaFase.status
             )
             .outerjoin(Cliente, Cliente.idclientes == VwNfPendenciaFase.idCliente)
-            .filter(VwNfPendenciaFase.fase == 'PENDENCIAS')
+            .filter(
+                or_(
+                    VwNfPendenciaFase.fase == 'PENDENCIAS',
+                    VwNfPendenciaFase.status.in_(['COMISSAO', 'COMISSÃO', 'MARTINS'])
+                )
+            )
             .order_by(VwNfPendenciaFase.dtVencimento.asc())
             .limit(1000)
             .all()

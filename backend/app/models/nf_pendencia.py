@@ -23,6 +23,7 @@ class NfPendencia(Base):
     dtVencimento = Column(Date, nullable=True)                                        # Coluna P - Vencto
     valorOriginal = Column(Float(precision=18, decimal_return_scale=2), nullable=True)  # Coluna T - Val Original
     valorSaldo = Column(Float(precision=18, decimal_return_scale=2), nullable=True)     # Coluna U - Saldo
+    sitTitulo = Column(String(20), nullable=True)
 
     idImportacoes = Column(Integer, ForeignKey("importacoes.idImportacoes"), nullable=True)
     createdAt = Column(DateTime, nullable=True, default=func.now())
@@ -57,5 +58,6 @@ class VwNfPendenciaFase(Base):
     dtEntrega = Column(Date)
     valorOriginal = Column(Float)
     valorSaldo = Column(Float)
+    sitTitulo = Column(String(20))
     
     cliente = relationship("Cliente")

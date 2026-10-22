@@ -182,7 +182,15 @@ class InadimplenciaService:
             yield json.dumps({"erro": f"Erro ao registrar importação: {e}"}) + "\n"
             return
 
-        linhas = (self._linha_planilha_para_dict(row) for _, row in df.iterrows())
+        # Detecta dinamicamente se a coluna sitTitulo existe na planilha
+        col_sit_titulo = None
+        for col_name in df.columns:
+            norm = str(col_name).strip().lower().replace("_", "").replace(" ", "").replace(".", "").replace("ç", "c").replace("ã", "a")
+            if norm in ("sittitulo", "situacaotitulo", "situacaodotitulo", "sittit", "situacao", "sit"):
+                col_sit_titulo = col_name
+                break
+
+        linhas = (self._linha_planilha_para_dict(row, col_sit_titulo) for _, row in df.iterrows())
         try:
             for evento in self._processar_linhas_pendencias(
                 linhas=linhas,
@@ -234,8 +242,14 @@ class InadimplenciaService:
             self.db.rollback()
             raise
 
-    def _linha_planilha_para_dict(self, row) -> dict:
+    def _linha_planilha_para_dict(self, row, col_sit_titulo: Optional[str] = None) -> dict:
         """Converte uma linha do DataFrame (layout fixo por coluna) para os campos nomeados."""
+        sit_val = None
+        if col_sit_titulo is not None and col_sit_titulo in row.index:
+            val = row[col_sit_titulo]
+            if pd.notna(val):
+                sit_val = str(val).strip()
+
         return {
             "estabelecimento": row.iloc[self.COL_ESTABELECIMENTO],
             "especie": row.iloc[self.COL_ESPECIE],
@@ -254,6 +268,7 @@ class InadimplenciaService:
             "dtVencimento": row.iloc[self.COL_VENCIMENTO],
             "valorOriginal": row.iloc[self.COL_VALOR_ORIGINAL],
             "valorSaldo": row.iloc[self.COL_SALDO],
+            "sitTitulo": sit_val,
         }
 
     def _processar_linhas_pendencias(
@@ -343,6 +358,8 @@ class InadimplenciaService:
             data_entrega = _excel_serial_to_date(linha.get("dtEntrega"))
             valor_original = _to_float(linha.get("valorOriginal"))
             saldo = _to_float(linha.get("valorSaldo"))
+            sit_titulo_raw = _clean_str(linha.get("sitTitulo"))
+            sit_titulo = sit_titulo_raw[:20] if sit_titulo_raw else None
 
             codigo_cliente = _to_int(linha.get("codigoCliente"))
             nome_cliente = _clean_str(linha.get("nomeCliente"))
@@ -469,6 +486,10 @@ class InadimplenciaService:
                 if id_cliente is not None and id_cliente != pendencia_existente.idCliente:
                     pendencia_existente.idCliente = id_cliente
 
+                if sit_titulo is not None and sit_titulo != pendencia_existente.sitTitulo:
+                    mudancas.append(f"Situação do Título: de {pendencia_existente.sitTitulo or '-'} para {sit_titulo}")
+                    pendencia_existente.sitTitulo = sit_titulo
+
                 # Se a pendência estava marcada como encerrada por ausência anterior mas voltou na planilha
                 if not is_prorrogacao and pendencia_existente.encerrado == 'S':
                     pendencia_existente.encerrado = 'N'
@@ -558,6 +579,7 @@ class InadimplenciaService:
                     dtVencimento=vencimento,
                     valorOriginal=valor_original,
                     valorSaldo=saldo,
+                    sitTitulo=sit_titulo,
                     encerrado='N'
                 )
                 self.db.add(nf)
@@ -675,6 +697,7 @@ class InadimplenciaService:
                 "dtEntrega": vw.dtEntrega.isoformat() if vw.dtEntrega else None,
                 "valorOriginal": vw.valorOriginal,
                 "valorSaldo": vw.valorSaldo,
+                "sitTitulo": vw.sitTitulo,
             })
         return resultados
 
